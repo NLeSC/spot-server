@@ -3,8 +3,9 @@ var commandLineUsage = require('command-line-usage');
 
 var fs = require('fs');
 
-var csvParse = require('csv-parse/lib/sync');
+var csvParse = require('csv-parse');
 var csvStringify = require('csv-stringify');
+var csvTransform = require('stream-transform');
 var streamify = require('stream-array');
 
 var pg = require('pg'); // .native not supported
@@ -13,10 +14,8 @@ var utilPg = require('./server-postgres');
 var squel = require('squel').useFlavour('postgres');
 squel.create = require('./squel-create');
 
-var Me = require('../framework/me');
-var ServerDataset = require('../framework/dataset/server');
-var CrossfilterDataset = require('../framework/dataset/client');
-var misval = require('../framework/util/misval');
+var Spot = require('spot-framework');
+var misval = Spot.util.misval;
 
 var optionDefinitions = [
   {
@@ -92,7 +91,7 @@ var options = commandLineArgs(optionDefinitions);
 // no commandline options, '-h', or '--help'
 if (Object.keys(options).length === 0 || options.help) {
   console.log(commandLineUsage(usageSections));
-  process.exit(0);
+  process.exit(1);
 }
 
 // contradictory file formats
@@ -105,120 +104,121 @@ if (options.csv && options.json) {
 if (options.file) {
   if (!(options.csv || options.json)) {
     console.error('Give either CSV or JSON filetype');
-    process.exit(2);
+    process.exit(1);
   }
 }
 
 // no connection string
 if (!options.connectionString) {
   console.error('Give connection string');
-  process.exit(4);
+  process.exit(1);
 }
 
 // no table name
 if (!options.table) {
   // TODO check if name is valid
   console.error('Give table name');
-  process.exit(5);
+  process.exit(1);
 }
 
 /**
  * Scan an existing database table
+ * @param {Spot} spot a spot instance
  * @param {hash} options
  * @returns {Dataset} dataset
  */
-function scanTable (options) {
+function scanTable (spot, options) {
   var query = squel.select().distinct().from(options.table).limit(50);
   console.log(query.toString());
   utilPg.queryAndCallBack(query, function (data) {
-    var dataset = new ServerDataset();
+    var dataset = spot.datasets.add({
+      databaseTable: options.table
+    });
     utilPg.parseRows(data, dataset);
-    updateSession(options, dataset);
+    writeSession(spot, options);
   });
 }
 
 /**
  * Load data form a file
+ * @param {Spot} spot a spot instance
  * @param {hash} options
- * @returns {Dataset} dataset
  */
-function importFile (options) {
+function importFile (spot, options) {
   // create dataset structure
-  var dataset = new CrossfilterDataset({
+  var dataset = spot.datasets.add({
     name: options.file,
-    description: options.description,
-    URL: options.url
+    description: options.description || 'no description',
+    URL: options.url || 'no url',
+    databaseTable: options.table
   });
 
-  // load file
-  var contents;
-  try {
-    contents = fs.readFileSync(options.file, 'utf8');
-  } catch (err) {
-    console.log(err);
-    console.error('Cannot read file', options.file);
-    process.exit(6);
-  }
-
   // parse
-  var data;
   if (options.json) {
-    data = JSON.parse(contents);
-  } else if (options.csv) {
-    // remove leading '#' from first line, if present
-    if (contents[0] === '#') {
-      contents[0] = ' ';
+    // assume JSON files are typically small-ish. load it fully into memory
+    try {
+      var allBytes = fs.readFileSync(options.file, 'utf8');
+    } catch (err) {
+      console.log(err);
+      console.error('Cannot read file', options.file);
+      process.exit(1);
     }
 
-    data = csvParse(contents, {
+    // add the data to the dataset
+    var allJSON = JSON.parse(allBytes);
+    dataset.crossfilter.add(allJSON);
+
+    analyzeData(spot, options, dataset, allJSON);
+  } else if (options.csv) {
+    // do not assume anything about the size of the CSV file
+    // but read first 1000 records only
+
+    var inStream = fs.createReadStream(options.file);
+    var parser = csvParse({
+      to: 1000,
       columns: true
+    }, function (error, data) {
+      if (error) {
+        console.error(error);
+        process.exit(1);
+      }
+
+      // add the data to the dataset
+      console.log(data);
+      dataset.crossfilter.add(data);
+      analyzeData(spot, options, dataset, allJSON);
     });
+
+    inStream.pipe(parser);
   }
+}
 
-  // add to dataset
-  dataset.crossfilter.add(data);
+function analyzeData (spot, options, dataset, allJSON) {
+  // analyze data
+  console.log('Scanning');
+  dataset.scan();
 
-  // Scan and configure
-  // ******************
+  // create a table with a column per facet
   var columns = [];
+  var valueFns = {};
   var q = squel.create().table(options.table);
 
-  console.log('Scanning');
-  dataset.scanData();
   dataset.facets.forEach(function (facet) {
     facet.isActive = true;
     if (facet.isCategorial) {
-      facet.setCategories();
       q.field(facet.name, 'varchar');
     } else if (facet.isContinuous) {
-      facet.setMinMax();
       q.field(facet.name, 'real');
     } else if (facet.isDatetime) {
-      facet.setMinMax();
       q.field(facet.name, 'timestamp with time zone');
     } else if (facet.isDuration) {
-      facet.setMinMax();
       q.field(facet.name, 'interval');
     } else if (facet.isText) {
       q.field(facet.name, 'varchar');
     }
     columns.push(facet.name);
+    valueFns[facet.name] = Spot.util.dx.valueFn(facet);
   });
-  console.log('Create table string:', q.toString());
-
-  // Have the framework parse the data once
-  // needed to ignore missing / invalid data that would abort the import
-  // when adding to the database
-  console.log('Validating');
-
-  var crossfilterMe = new Me();
-  crossfilterMe.datasets.add(dataset);
-  crossfilterMe.toggleDataset(dataset);
-  var parsed = crossfilterMe.dataview.exportData();
-
-  // Create database table
-  // *********************
-  console.log('Streaming to database');
 
   var client = new pg.Client(options.connectionString);
   client.on('drain', client.end.bind(client));
@@ -238,10 +238,11 @@ function importFile (options) {
     // create table & sink
     client.query('DROP TABLE IF EXISTS ' + options.table);
     client.query(q.toString());
+    console.log(q.toString());
     var sink = client.query(pgStream.from(command));
 
-    // create transfrom
-    var transform = csvStringify({
+    // create formatter
+    var formatter = csvStringify({
       columns: columns,
       quote: false,
       quotedEmpty: false,
@@ -254,56 +255,64 @@ function importFile (options) {
       }
     });
 
-    streamify(parsed).pipe(transform).pipe(sink);
-    // var testSink = fs.createWriteStream('file_to_import.csv');
-    // transform.pipe(testSink);
+    // create transformer
+    var transformer = csvTransform(function (data) {
+      columns.forEach(function (column) {
+        data[column] = valueFns[column](data);
+      });
+      return data;
+    });
+
+    console.log('Streaming to database');
+
+    if (options.json) {
+      streamify(allJSON).pipe(transformer).pipe(formatter).pipe(sink);
+    } else if (options.csv) {
+      var inStream = fs.createReadStream(options.file);
+      var parser = csvParse({
+        columns: true
+      }, function (error, data) {
+        if (error) {
+          console.error(error);
+          process.exit(1);
+        }
+      });
+      inStream.pipe(parser).pipe(transformer).pipe(formatter).pipe(sink);
+    }
   });
 
-  updateSession(options, dataset);
+  writeSession(spot, options);
 }
 
-// Update session file
-// *******************
-function updateSession (options, dataset) {
-  // Load current config
-  var me;
-  var contents;
-
-  console.log('Opening session: ', options.session);
-  try {
-    contents = JSON.parse(fs.readFileSync(options.session, 'utf8'));
-    me = new Me(contents);
-  } catch (err) {
-    // console.error(err);
-    console.log('Failed to load session, creating new session file');
-    me = new Me();
-  }
-
-  // add new dataset
-  console.log('Adding: ', options.table);
-  var json = dataset.toJSON();
-  json.datasetType = 'server';
-  json.databaseTable = options.table;
-  me.datasets.add(json);
-
-  // cleanup and force config
-  delete me.dataview;
-  me.datasets.forEach(function (dataset) {
-    dataset.isActive = false;
-  });
-
+function writeSession (spot, options) {
   // write
   console.log('Writing session');
-  fs.writeFileSync(options.session, JSON.stringify(me.toJSON()));
+  fs.writeFileSync(options.session, JSON.stringify(spot.toJSON(), null, '\t'));
 }
 
 // *********************
 // Do import
 // *********************
+
+// Load current config
+var spot = new Spot();
+var contents;
+
+console.log('Opening session: ', options.session);
+try {
+  contents = JSON.parse(fs.readFileSync(options.session, 'utf8'));
+  spot = new Spot(contents);
+} catch (err) {
+  console.log('Failed to load session, creating new session file');
+  spot = new Spot({
+    sessionType: 'server'
+  });
+}
+
 if (options.file) {
-  importFile(options);
+  importFile(spot, options);
 } else {
   utilPg.setConnectionString(options.connectionString);
-  scanTable(options);
+  scanTable(spot, options);
   utilPg.disconnect();
 }
