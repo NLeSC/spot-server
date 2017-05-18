@@ -32,9 +32,7 @@
  *
  * @module client/util-sql
  */
-var io = require('./server-socket');
 var squel = require('squel').useFlavour('postgres');
-var utilPg = require('./server-postgres');
 var moment = require('moment-timezone');
 var utilTime = require('spot-framework').util.time;
 
@@ -47,10 +45,12 @@ var aggregateToName = {1: 'aa', 2: 'bb', 3: 'cc', 4: 'dd', 5: 'ee'};
  * SQL construction functions
  ******************************************************/
 
-// wrap a identifier in double quotes, and escape literal quotes
+// wrap a identifier in double quotes
+// escape literal quotes
 function esc (string) {
   var escaped = string.replace('"', '""');
-  return '"' + escaped + '"';
+  // return '"' + escaped + '"';
+  return escaped;
 }
 
 /**
@@ -595,7 +595,7 @@ function whereSelected (facet, subFacet, partition) {
  * spot-server callbacks
  ******************************************************/
 
-function setPercentiles (dataset, facet) {
+function setPercentiles (server, dataset, facet) {
   // NOTE: requires at least postgres 9.4
   // select unnest(percentile_disc(array[...]) within group (order by ...)) from ...
 
@@ -613,7 +613,7 @@ function setPercentiles (dataset, facet) {
     query += ' WHERE ' + valid;
   }
 
-  utilPg.queryAndCallBack(query, function (data) {
+  server.connector.queryAndCallBack(query, function (data) {
     data.rows.forEach(function (row, i) {
       var prevX = null;
       var ncps = facet.continuousTransform.cps.length;
@@ -630,7 +630,7 @@ function setPercentiles (dataset, facet) {
       }
     });
     facet.continuousTransform.type = 'percentiles';
-    io.syncFacets(dataset);
+    server.sendFacets(dataset);
   });
 }
 
@@ -638,23 +638,24 @@ function setPercentiles (dataset, facet) {
  * Sets minimum and maximum value on a facet
  *
  * @function
+ * @params {Server} server Spot server
  * @params {Dataset} Dataset
  * @params {Facet} facet
  */
-function setMinMax (dataset, facet) {
+function setMinMax (server, dataset, facet) {
   var query = squel.select()
     .from(esc(dataset.databaseTable))
     .field('MIN(' + esc(facet.accessor) + ')', 'min')
     .field('MAX(' + esc(facet.accessor) + ')', 'max')
     .where(whereValid(facet).toString());
 
-  utilPg.queryAndCallBack(query, function (result) {
+  server.connector.queryAndCallBack(query, function (result) {
     if (result.rows && result.rows.length > 0) {
       facet.minvalAsText = result.rows[0].min.toString();
       facet.maxvalAsText = result.rows[0].max.toString();
     }
 
-    io.syncFacets(dataset);
+    server.sendFacets(dataset);
   });
 }
 
@@ -662,10 +663,11 @@ function setMinMax (dataset, facet) {
  * setCategories finds finds all values on an ordinal (categorial) axis
  * Updates the categorialTransform of the facet
  *
+ * @params {Server} server Spot server
  * @param {Dataset} dataset
  * @param {Facet} facet
  */
-function setCategories (dataset, facet) {
+function setCategories (server, dataset, facet) {
   var query;
 
   // select and add results to the facet's categorialTransform
@@ -678,7 +680,7 @@ function setCategories (dataset, facet) {
     .group('category')
     .order('count', false);
 
-  utilPg.queryAndCallBack(query, function (result) {
+  server.connector.queryAndCallBack(query, function (result) {
     var rows = result.rows;
 
     facet.categorialTransform.rules.reset();
@@ -690,20 +692,23 @@ function setCategories (dataset, facet) {
         group: row.category.toString()
       });
     });
-    io.syncFacets(dataset);
+    server.syncFacets(dataset);
   });
 }
+
 /**
  * Scan dataset and create Facets
  * when done, send new facets to client.
  *
  * @function
+ * @params {Server} server Spot server
+ * @params {Dataset} dataset Dataset to scan
  */
-function scanData (dataset) {
+function scanData (server, dataset) {
   var query = squel.select().distinct().from(esc(dataset.databaseTable)).limit(50);
-  utilPg.queryAndCallBack(query, function (data) {
-    utilPg.parseRows(data, dataset);
-    io.syncFacets(dataset);
+  server.connector.queryAndCallBack(query, function (data) {
+    server.parseRows(data, dataset);
+    server.sendFacets(dataset);
   });
 }
 
@@ -711,7 +716,7 @@ function scanData (dataset) {
  * Get data for a filter
  * @params {Dataset} dataview
  * @params {Dataset} subDataset
- * @params {Filter} filter
+ * @params {Filter} currentFilter
  */
 function subTableQuery (dataview, dataset, currentFilter) {
   var query = squel.select();
@@ -772,15 +777,16 @@ function subTableQuery (dataview, dataset, currentFilter) {
 
 /**
  * Get data for a filter
+ * @params {Server} server
  * @params {Dataset[]} datasets
  * @params {Dataset} dataview
  * @params {Filter} filter
  */
-function getData (datasets, dataview, currentFilter) {
+function getData (server, datasets, dataview, filter) {
   var query = squel.select();
 
   // FIELD clause for this partition, combined with GROUP BY
-  currentFilter.partitions.forEach(function (partition) {
+  filter.partitions.forEach(function (partition) {
     var columnName = columnToName[partition.rank];
     query.field(columnName, columnName);
     query.group(columnName);
@@ -789,8 +795,8 @@ function getData (datasets, dataview, currentFilter) {
   // FIELD clause for this aggregate, combined with SUM(), AVG(), etc.
   // NOTE: Because of the way we split the query over sub tables,
   // the count() operation turns into a sum()
-  if (currentFilter.aggregates.length > 0) {
-    currentFilter.aggregates.forEach(function (aggregate) {
+  if (filter.aggregates.length > 0) {
+    filter.aggregates.forEach(function (aggregate) {
       var ops = aggregate.operation;
       var col = aggregateToName[aggregate.rank];
 
@@ -817,15 +823,13 @@ function getData (datasets, dataview, currentFilter) {
 
   // FROM clause for the dataview
   var datasetUnion = null;
-  var tables = dataview.databaseTable.split('|');
-  datasets.forEach(function (dataset) {
-    if (tables.indexOf(dataset.databaseTable) !== -1) {
-      var subTable = subTableQuery(dataview, dataset, currentFilter);
-      if (datasetUnion) {
-        datasetUnion.union_all(subTable);
-      } else {
-        datasetUnion = subTable;
-      }
+  dataview.datasetIds.forEach(function (datasetId) {
+    var dataset = datasets.get(datasetId);
+    var subTable = subTableQuery(dataview, dataset, filter);
+    if (datasetUnion) {
+      datasetUnion.union_all(subTable);
+    } else {
+      datasetUnion = subTable;
     }
   });
   query.from(datasetUnion, 'datasetUnion');
@@ -834,8 +838,8 @@ function getData (datasets, dataview, currentFilter) {
   // query.order('', true);
   // query.limit();
 
-  console.log(currentFilter.id + ': ' + query.toString());
-  utilPg.queryAndCallBack(query, function (result) {
+  console.log(filter.id + ': ' + query.toString());
+  server.connector.queryAndCallBack(query, function (result) {
     // Post process
     var rows = result.rows;
 
@@ -847,7 +851,7 @@ function getData (datasets, dataview, currentFilter) {
         }
 
         var column = nameToColumn[columnName];
-        var partition = currentFilter.partitions.get(column, 'rank');
+        var partition = filter.partitions.get(column, 'rank');
         var g = row[columnName];
 
         if (partition.isContinuous) {
@@ -859,7 +863,7 @@ function getData (datasets, dataview, currentFilter) {
         }
       });
     });
-    io.sendData(currentFilter, rows);
+    server.sendData(filter, rows);
   });
 }
 
@@ -887,10 +891,11 @@ function getData (datasets, dataview, currentFilter) {
  *      whereSelected for each partition of each filter
  *  ) AS selected
  *
+ * @params {Server} server
  * @params {Dataset[]} datasets
  * @params {Dataset} dataview
  */
-function getMetaData (datasets, dataview) {
+function getMetaData (server, datasets, dataview) {
   var query = squel.select();
 
   // FIELD clause for this partition, combined with GROUP BY
@@ -900,66 +905,64 @@ function getMetaData (datasets, dataview) {
   // FROM clauses
   var selectedUnion;
   var totalUnion;
-  var tables = dataview.databaseTable.split('|');
 
-  datasets.forEach(function (dataset) {
-    if (tables.indexOf(dataset.databaseTable) !== -1) {
-      var selectedQuery = squel.select();
-      var totalQuery = squel.select();
+  dataview.datasetIds.forEach(function (datasetId) {
+    var dataset = datasets.get(datasetId);
+    var selectedQuery = squel.select();
+    var totalQuery = squel.select();
 
-      // keep a total count
-      selectedQuery.field('COUNT(1)', 'count');
-      totalQuery.field('COUNT(1)', 'count');
+    // keep a total count
+    selectedQuery.field('COUNT(1)', 'count');
+    totalQuery.field('COUNT(1)', 'count');
 
-      // FROM clause
-      selectedQuery.from(esc(dataset.databaseTable));
-      totalQuery.from(esc(dataset.databaseTable));
+    // FROM clause
+    selectedQuery.from(esc(dataset.databaseTable));
+    totalQuery.from(esc(dataset.databaseTable));
 
-      // WHERE clause for all facets for isValid / missing
-      dataview.filters.forEach(function (filter) {
-        filter.partitions.forEach(function (partition) {
-          var facet = dataset.facets.get(partition.facetName, 'name');
-          selectedQuery.where(whereValid(facet));
-          totalQuery.where(whereValid(facet));
-        });
+    // WHERE clause for all facets for isValid / missing
+    dataview.filters.forEach(function (filter) {
+      filter.partitions.forEach(function (partition) {
+        var facet = dataset.facets.get(partition.facetName, 'name');
+        selectedQuery.where(whereValid(facet));
+        totalQuery.where(whereValid(facet));
+      });
+    });
+
+    // WHERE clause for all filters selection or range
+    dataview.filters.forEach(function (filter) {
+      filter.partitions.forEach(function (partition) {
+        var facet = dataview.facets.get(partition.facetName, 'name');
+        var subFacet = dataset.facets.get(partition.facetName, 'name');
+        selectedQuery.where(whereSelected(facet, subFacet, partition));
       });
 
-      // WHERE clause for all filters selection or range
-      dataview.filters.forEach(function (filter) {
-        filter.partitions.forEach(function (partition) {
-          var facet = dataview.facets.get(partition.facetName, 'name');
-          var subFacet = dataset.facets.get(partition.facetName, 'name');
-          selectedQuery.where(whereSelected(facet, subFacet, partition));
-        });
+      filter.partitions.forEach(function (partition) {
+        var facet = dataview.facets.get(partition.facetName, 'name');
+        var subFacet = dataset.facets.get(partition.facetName, 'name');
 
-        filter.partitions.forEach(function (partition) {
-          var facet = dataview.facets.get(partition.facetName, 'name');
-          var subFacet = dataset.facets.get(partition.facetName, 'name');
+        var selected = partition.selected;
+        partition.selected = [];
 
-          var selected = partition.selected;
-          partition.selected = [];
+        totalQuery.where(whereSelected(facet, subFacet, partition));
 
-          totalQuery.where(whereSelected(facet, subFacet, partition));
-
-          partition.selected = selected;
-        });
+        partition.selected = selected;
       });
+    });
 
-      if (selectedUnion && totalUnion) {
-        selectedUnion.union_all(selectedQuery);
-        totalUnion.union_all(totalQuery);
-      } else {
-        selectedUnion = selectedQuery;
-        totalUnion = totalQuery;
-      }
+    if (selectedUnion && totalUnion) {
+      selectedUnion.union_all(selectedQuery);
+      totalUnion.union_all(totalQuery);
+    } else {
+      selectedUnion = selectedQuery;
+      totalUnion = totalQuery;
     }
   });
   query.from(selectedUnion, 'selected');
   query.from(totalUnion, 'total');
 
   console.log(dataview.id + ': ' + query.toString());
-  utilPg.queryAndCallBack(query, function (result) {
-    io.sendMetaData(dataview, result.rows[0].total, result.rows[0].selected);
+  server.connector.queryAndCallBack(query, function (result) {
+    server.sendMetaData(dataview, result.rows[0].total, result.rows[0].selected);
   });
 }
 

@@ -8,11 +8,10 @@ var csvStringify = require('csv-stringify');
 var csvTransform = require('stream-transform');
 var streamify = require('stream-array');
 
-var pg = require('pg'); // .native not supported
+var pg = require('pg'); // .native not supported by pgStream
 var pgStream = require('pg-copy-streams');
-var utilPg = require('./server-postgres');
 var squel = require('squel').useFlavour('postgres');
-squel.create = require('./squel-create');
+squel.create = require('../src/squel-create');
 
 var Spot = require('spot-framework');
 var misval = Spot.util.misval;
@@ -122,24 +121,6 @@ if (!options.table) {
 }
 
 /**
- * Scan an existing database table
- * @param {Spot} spot a spot instance
- * @param {hash} options
- * @returns {Dataset} dataset
- */
-function scanTable (spot, options) {
-  var query = squel.select().distinct().from(options.table).limit(50);
-  console.log(query.toString());
-  utilPg.queryAndCallBack(query, function (data) {
-    var dataset = spot.datasets.add({
-      databaseTable: options.table
-    });
-    utilPg.parseRows(data, dataset);
-    writeSession(spot, options);
-  });
-}
-
-/**
  * Load data form a file
  * @param {Spot} spot a spot instance
  * @param {hash} options
@@ -165,10 +146,9 @@ function importFile (spot, options) {
     }
 
     // add the data to the dataset
-    var allJSON = JSON.parse(allBytes);
-    dataset.crossfilter.add(allJSON);
+    dataset.data = JSON.parse(allBytes);
 
-    analyzeData(spot, options, dataset, allJSON);
+    uploadDataset(spot, options, dataset);
   } else if (options.csv) {
     // do not assume anything about the size of the CSV file
     // but read first 1000 records only
@@ -185,15 +165,15 @@ function importFile (spot, options) {
 
       // add the data to the dataset
       console.log(data);
-      dataset.crossfilter.add(data);
-      analyzeData(spot, options, dataset, allJSON);
+      dataset.data = data;
+      uploadDataset(spot, options, dataset);
     });
 
     inStream.pipe(parser);
   }
 }
 
-function analyzeData (spot, options, dataset, allJSON) {
+function uploadDataset (spot, options, dataset) {
   // analyze data
   console.log('Scanning');
   dataset.scan();
@@ -266,7 +246,7 @@ function analyzeData (spot, options, dataset, allJSON) {
     console.log('Streaming to database');
 
     if (options.json) {
-      streamify(allJSON).pipe(transformer).pipe(formatter).pipe(sink);
+      streamify(dataset.data).pipe(transformer).pipe(formatter).pipe(sink);
     } else if (options.csv) {
       var inStream = fs.createReadStream(options.file);
       var parser = csvParse({
@@ -295,7 +275,7 @@ function writeSession (spot, options) {
 // *********************
 
 // Load current config
-var spot = new Spot();
+var spot;
 var contents;
 
 console.log('Opening session: ', options.session);
@@ -305,14 +285,10 @@ try {
 } catch (err) {
   console.log('Failed to load session, creating new session file');
   spot = new Spot({
-    sessionType: 'server'
+    sessionType: 'client'
   });
 }
 
 if (options.file) {
   importFile(spot, options);
-} else {
-  utilPg.setConnectionString(options.connectionString);
-  scanTable(spot, options);
-  utilPg.disconnect();
 }

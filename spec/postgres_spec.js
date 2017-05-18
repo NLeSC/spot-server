@@ -1,12 +1,12 @@
 /* eslint-env jasmine */
 var Spot = require('spot-framework');
-
-var postgresUtil = require('../src/server-sql-util');
 var DatetimeTransform = Spot.transforms.datetime;
 var DurationTransform = Spot.transforms.duration;
 
-var utilPg = require('../src/server-postgres');
-utilPg.setConnectionString('postgres://postgres@localhost/spot_test');
+var Connector = require('../src/postgres-connector');
+var connector = new Connector('postgres://postgres@localhost/spot_test');
+
+var driver = require('../src/sql-driver');
 
 // expressionType is either: facet's transformed value is:
 // 1. datetime      a. datetime
@@ -24,9 +24,9 @@ utilPg.setConnectionString('postgres://postgres@localhost/spot_test');
 
 describe('PostgreSQL query generation functions for datetimes', function () {
   var doCallBack = function (transform, scope, done) {
-    var expression = 'SELECT ' + postgresUtil.transformExpression("'2016-01-01T00:00:00.000Z'::timestamptz", 'datetime', transform) + ' AS result';
+    var expression = 'SELECT ' + driver.transformExpression("'2016-01-01T00:00:00.000Z'::timestamptz", 'datetime', transform) + ' AS result';
 
-    utilPg.queryAndCallBack(expression, function (data) {
+    connector.queryAndCallBack(expression, function (data) {
       scope.result = data.rows[0].result;
       done();
     });
@@ -92,9 +92,9 @@ describe('PostgreSQL query generation functions for datetimes', function () {
 
 describe('PostgreSQL query generation functions for durations: ', function () {
   var doCallBack = function (transform, scope, done) {
-    var expression = 'SELECT ' + postgresUtil.transformExpression("interval 'P10D'", 'duration', transform) + ' AS result';
+    var expression = 'SELECT ' + driver.transformExpression("interval 'P10D'", 'duration', transform) + ' AS result';
 
-    utilPg.queryAndCallBack(expression, function (data) {
+    connector.queryAndCallBack(expression, function (data) {
       scope.result = data.rows[0].result;
       done();
     });
@@ -136,9 +136,9 @@ describe('PostgreSQL query generation functions for durations: ', function () {
 /*
 describe('PostgreSQL query generation functions for continuous: ', function () {
   var doCallBack = function (transform, scope, done) {
-    var expression = 'SELECT ' + postgresUtil.transformExpression('10', 'continuous', transform) + ' AS result';
+    var expression = 'SELECT ' + driver.transformExpression('10', 'continuous', transform) + ' AS result';
 
-    utilPg.queryAndCallBack(expression, function (data) {
+    connector.queryAndCallBack(expression, function (data) {
       scope.result = data.rows[0].result;
       done();
     });
@@ -148,9 +148,9 @@ describe('PostgreSQL query generation functions for continuous: ', function () {
 
 describe('PostgreSQL query generation functions for categorial: ', function () {
   var doCallBack = function (transform, scope, done) {
-    var expression = 'SELECT ' + postgresUtil.transformExpression('tag', 'categorial', transform) + ' AS result';
+    var expression = 'SELECT ' + driver.transformExpression('tag', 'categorial', transform) + ' AS result';
 
-    utilPg.queryAndCallBack(expression, function (data) {
+    connector.queryAndCallBack(expression, function (data) {
       scope.result = data.rows[0].result;
       done();
     });

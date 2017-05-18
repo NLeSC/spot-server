@@ -1,14 +1,15 @@
 {
-  "name": "spot-pgserver",
+  "name": "spot-server",
   "license": "Apache-2.0",
   "version": "0.0.7",
-  "homepage": "https://github.com/NLeSC/spot-pgserver",
+  "homepage": "https://github.com/NLeSC/spot-server",
   "description": "Spot dataserver for connecting to a PostgreSQL database",
   "keywords": [
     "visualization",
     "crossfilter",
     "multi-dimensional"
   ],
+  "main": "./src/main.js",
   "readmeFilename": "README.md",
   "author": {
     "name": "Jisk Attema",
@@ -22,10 +23,10 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/NLeSC/spot-pgserver.git"
+    "url": "https://github.com/NLeSC/spot-server.git"
   },
   "bugs": {
-    "url": "https://github.com/NLeSC/spot-pgserver/issues"
+    "url": "https://github.com/NLeSC/spot-server/issues"
   },
   "semistandard": {
     "ignore": [

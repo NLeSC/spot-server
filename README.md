@@ -1,43 +1,27 @@
-# spot-pgserver
-[![Build Status](https://travis-ci.org/NLeSC/spot-pgserver.svg?branch=master)](https://travis-ci.org/NLeSC/spot-pgserver)
+# spot-server
+[![Build Status](https://travis-ci.org/NLeSC/spot-server.svg?branch=master)](https://travis-ci.org/NLeSC/spot-server)
 [![js-semistandard-style](https://img.shields.io/badge/code%20style-semistandard-brightgreen.svg?style=flat-square)](https://github.com/Flet/semistandard)
 
-Spot server connects to a database using a connection string, can be 'localhost'.
-For testing, create a user 'postgres' with a database 'spot\_test'
+Part of the spot-framework, spot-server provides a connection a to a database (currently PostgreSQL) instead of the default crossfilter backend.
 
-## With metadata
+## scripts
 
-it parses a session file for the available Datasets.
+### spot-server
 
-## Without metadata
+Combines this library with Express to host a website.
+It uses a session file to keep track of database tables to serve.
 
-spot-server scans all tables and constructs Datasets object
+### spot-import
 
-## Data import tool
+Import files (CSV, JSON) into the database.
+It also creates a session file.
 
-Commandline tool to insert a dataset in the database.
 
-1. Import a file from local file system
-2. create Facets using scanData
-3. Validate / normalize contents using the crossfilter dataset
-4. Create database table where the columns and their types correspond to the Facets. TODO: mapping to best SQL types
-5. Perform a COPY FROM and stream into the database
-6. Update the metadata table
+# Notes
+
+## heap out of memory
 
 If node crashes with `heap out of memory`, increase it using `node --max_old_space_size=4096`.
-
-# Client
-
-## Connect
-
-client connects to spot-server, and requests Datasets.
-server sends the Datasets
-
-## getData
-
-client sends Datasets, the currently active Dataset, and the Filter
-spot-server builds temporary table based on the Datasets / Dataset
-spot-server executes query for the Filter on the temporary table
 
 # Security concerns
 
