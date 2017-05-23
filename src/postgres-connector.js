@@ -1,3 +1,22 @@
+/**
+ * PostgreSQL specific functions
+ *
+ * it is using:
+ *  * a pool of database connections
+ *  * native bindings to the pg library
+ *
+ * usage:
+ * ```
+ * var PGConnector = require('./postgres-connector');
+ * var connector = new PGConnector('postgres://localhost');
+ * ```
+ *
+ * For connection settings, see fi. [this page](https://jdbc.postgresql.org/documentation/80/connect.html) for examples.
+ * For securely setting a password [see here](https://www.postgresql.org/docs/9.1/static/libpq-pgpass.html).
+ *
+ * @module postgres-connector
+ */
+
 // With pg-native we will use the (faster) native bindings
 var parseConnection = require('pg-connection-string').parse;
 
@@ -16,12 +35,12 @@ types.setTypeParser(1186, function (val) { return val; });
 
 /**
  * Perform an database query, and perform callback with the result
- * @function
+ *
  * @params{Squel.expr} q
  * @params{function} cb
- * @params{scope} that scope for the callback
+ * @params{scope} scope scope for the callback
  */
-function queryAndCallBack (q, cb, that) {
+function queryAndCallBack (q, cb, scope) {
   this.pool.connect(function (err, client, done) {
     if (err) {
       return console.error('error fetching client from pool', err);
@@ -33,18 +52,11 @@ function queryAndCallBack (q, cb, that) {
       if (err) {
         return console.error('error running query', err);
       }
-      cb.call(that, result);
+      cb.call(scope, result);
     });
   });
 }
 
-/**
- * Connection settings
- * see for instance here:
- * https://jdbc.postgresql.org/documentation/80/connect.html
- * and securely setting password:
- * https://www.postgresql.org/docs/9.1/static/libpq-pgpass.html
- */
 module.exports = function (connectionString) {
   var c = parseConnection(connectionString);
 

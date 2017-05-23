@@ -1,3 +1,25 @@
+/**
+ * Spot server module
+ *
+ * For usage and examples, see the ```example``` directory and ```scripts/spot-server.js```.
+ *
+ * Usage:
+ * ```
+ * var Spot = require('spot-framework');
+ * var Server = require('spot-server');
+ * var io = require('socket.io')(http);
+ * var connector = new Server.connectors.Postgres('postgres://localhost');
+ *
+ * var spot = new Spot({
+ *   sessionType: 'server'
+ * });
+ *
+ * var server = new Server(io, connector, spot);
+ * server.run();
+ * ```
+ *
+ * @module spot-server
+ */
 var Dataview = require('spot-framework').constructors.Dataview;
 var Dataset = require('spot-framework').constructors.Dataset;
 var Datasets = require('spot-framework').constructors.Datasets;
@@ -111,6 +133,9 @@ module.exports = function SpotServer (io, connector, spot) {
   this.connector = connector;
   this.spot = spot;
 
+  /**
+   * Connect to the websocket and start listening
+   */
   this.run = function () {
     run(io, this);
   };

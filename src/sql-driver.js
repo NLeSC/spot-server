@@ -1,6 +1,7 @@
 /**
- * Utility functions for SQL datasets for use on the server
+ * Translate the spot-framework to SQL queries
  *
+ * ```sql
  * SELECT
  *   each filter.partition   where filter is from the view
  *   each filter.aggregate   where aggregate is from the view
@@ -28,9 +29,9 @@
  * GROUP BY
  *   each partition
  * )
+ * ```
  *
- *
- * @module client/util-sql
+ * @module sql-driver
  */
 var squel = require('squel').useFlavour('postgres');
 var moment = require('moment-timezone');
@@ -45,8 +46,12 @@ var aggregateToName = {1: 'aa', 2: 'bb', 3: 'cc', 4: 'dd', 5: 'ee'};
  * SQL construction functions
  ******************************************************/
 
-// wrap a identifier in double quotes
-// escape literal quotes
+/**
+ * Escape SQL queries, for now only deals with double-quotes '"'
+ *
+ * @private
+ * @param {string} string Query to escape
+ */
 function esc (string) {
   var escaped = string.replace('"', '""');
   // return '"' + escaped + '"';
@@ -57,8 +62,9 @@ function esc (string) {
  * Construct an expression for the 'WHERE' clause to filter invalid data
  * Data is considered valid if it is not equal to one of the `facet.misval`.
  * The type of the misval should match that of the facet.
- * * also include IS NOT NULL (NULL values are mapped to missing values)
- * @function
+ * Also include IS NOT NULL (NULL values are mapped to missing values)
+ *
+ * @private
  * @params {Facet} facet
  * @return {Squel.expr} expression
  */
@@ -103,7 +109,7 @@ function whereValid (facet) {
  *  * below min is mapped to -1
  *  * above max is mapped to partition.groups.length
  *
- * @function
+ * @private
  * @params {Partition} partition an isContinuous partition
  * @params {Facet} facet an isContinuous facet
  * @params {Facet} subFacet (optional) an isContinuous facet
@@ -157,7 +163,7 @@ function transformAndPartitionContinuous (expression, partition, facet, subFacet
  * NOTE: data is labeled by group index, starting at zero
  * * when no rule matches, return 'Other'
  *
- * @function
+ * @private
  * @params {Partition} partition an isCategorial facet
  * @params {Facet} facet an isCategorial facet
  * @params {Facet} subFacet (optional) an isCategorial facet
@@ -207,6 +213,14 @@ function transformAndPartitionCategorial (expression, partition, facet, subFacet
   return query;
 }
 
+/**
+ * Apply a transformation (ie. category remapping, date, time or duration conversions, percentiles)
+ *
+ * @private
+ * @params {squel|string} expression SquelJS query or plain string to transform
+ * @params {string} expressionType type of the expression before transformation
+ * @params {Object} transform Transfromation to apply
+ */
 function transformExpression (expression, expressionType, transform) {
   // expressionType is either:   facet's transformed value is:
   // 1. datetime                 a. datetime
@@ -289,6 +303,9 @@ function transformExpression (expression, expressionType, transform) {
 }
 
 /**
+ * Apply partitioning (binning) to the select statement
+ *
+ * @private
  * @params {squel|string} expression SquelJS query or plain string to group
  * @params {Partition} partition Partition describing the grouping
  */
@@ -363,7 +380,7 @@ function groupExpression (expression, partition) {
  *
  * This will also take care of the transforms.
  *
- * @function
+ * @private
  * @params {Facet} facet a facet of the combined dataset
  * @params {Facet} subFacet a facet of a real facet, ie. column of a database table
  * @params {Partition} partition a partitioning on the facet
@@ -403,6 +420,7 @@ function columnExpression (facet, subFacet, partition) {
 /*
  * Construct an expression for the 'WHERE' clause to filter unselected data
  *
+ * @private
  * @params {Facet} facet
  * @params {Facet} subFacet
  * @params {Partition} partition
@@ -457,6 +475,7 @@ function whereContCont (facet, subFacet, partition) {
 /*
  * Construct an expression for the 'WHERE' clause to filter unselected data
  *
+ * @private
  * @params {Facet} facet
  * @params {Facet} subFacet
  * @params {Partition} partition
@@ -502,8 +521,9 @@ function whereCatCat (facet, subFacet, partition) {
 /*
  * Construct an expression for the 'WHERE' clause to filter unselected data
  *
- * @params {Facet} facet
- * @params {Facet} subFacet
+ * @private
+ * @params {Facet} facet facet of the dataview
+ * @params {Facet} subFacet corresponding to a table column
  * @params {Partition} partition
  * @returns {Squel.expr} expression
  */
@@ -518,8 +538,9 @@ function whereText (facet, partition) {
 /**
  * Construct an expression for the 'WHERE' clause to filter unselected data
  *
- * @params {Facet} facet
- * @params {Facet} subFacet
+ * @private
+ * @params {Facet} facet facet of the dataview
+ * @params {Facet} subFacet corresponding to a table column
  * @params {Partition} partition
  * @returns {Squel.expr} expression
  */
@@ -591,14 +612,17 @@ function whereSelected (facet, subFacet, partition) {
   return expression;
 }
 
-/* *****************************************************
- * spot-server callbacks
- ******************************************************/
-
+/**
+ * Sets minimum and maximum value on a facet:
+ * select unnest(percentile_disc(array[...]) within group (order by ...)) from ...
+ *
+ * NOTE: requires at least postgres 9.4
+ *
+ * @params {Server} server Spot server
+ * @params {Dataset} Dataset
+ * @params {Facet} facet
+ */
 function setPercentiles (server, dataset, facet) {
-  // NOTE: requires at least postgres 9.4
-  // select unnest(percentile_disc(array[...]) within group (order by ...)) from ...
-
   facet.continuousTransform.reset();
 
   var p = [];
@@ -637,7 +661,6 @@ function setPercentiles (server, dataset, facet) {
 /**
  * Sets minimum and maximum value on a facet
  *
- * @function
  * @params {Server} server Spot server
  * @params {Dataset} Dataset
  * @params {Facet} facet
@@ -700,7 +723,6 @@ function setCategories (server, dataset, facet) {
  * Scan dataset and create Facets
  * when done, send new facets to client.
  *
- * @function
  * @params {Server} server Spot server
  * @params {Dataset} dataset Dataset to scan
  */
@@ -713,7 +735,9 @@ function scanData (server, dataset) {
 }
 
 /**
- * Get data for a filter
+ * Get data for a filter for a single dataset, ie. a single database table
+ *
+ * @private
  * @params {Dataset} dataview
  * @params {Dataset} subDataset
  * @params {Filter} currentFilter
@@ -776,10 +800,11 @@ function subTableQuery (dataview, dataset, currentFilter) {
 }
 
 /**
- * Get data for a filter
+ * Get data for a filter: join the results from the active datasets, ie. the relevant database tables.
+ *
  * @params {Server} server
  * @params {Dataset[]} datasets
- * @params {Dataset} dataview
+ * @params {Dataview} dataview
  * @params {Filter} filter
  */
 function getData (server, datasets, dataview, filter) {
@@ -893,7 +918,7 @@ function getData (server, datasets, dataview, filter) {
  *
  * @params {Server} server
  * @params {Dataset[]} datasets
- * @params {Dataset} dataview
+ * @params {Dataview} dataview
  */
 function getMetaData (server, datasets, dataview) {
   var query = squel.select();
