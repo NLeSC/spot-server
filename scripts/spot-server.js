@@ -66,7 +66,6 @@ var spot;
 
 if (options.session) {
   spot = new Spot(JSON.parse(fs.readFileSync(options.session, 'utf8')));
-  console.log('Serving datasets:', spot.datasets.length);
   spot.datasets.forEach(function (d, i) {
     console.log(i, d.getId(), d.name);
   });
