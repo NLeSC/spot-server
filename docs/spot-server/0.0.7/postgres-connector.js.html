@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>postgres-connector.js - Documentation</title>
+
+    <script src="scripts/prettify/prettify.js"></script>
+    <script src="scripts/prettify/lang-css.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css">
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+<body>
+
+<input type="checkbox" id="nav-trigger" class="nav-trigger" />
+<label for="nav-trigger" class="navicon-button x">
+  <div class="navicon"></div>
+</label>
+
+<label for="nav-trigger" class="overlay"></label>
+
+<nav>
+    <li class="nav-link nav-home-link"><a href="index.html">Home</a></li><li class="nav-heading">Modules</li><li class="nav-heading"><span class="nav-item-type type-module">M</span><span class="nav-item-name"><a href="module-postgres-connector.html">postgres-connector</a></span></li><li class="nav-item"><span class="nav-item-type type-function">F</span><span class="nav-item-name"><a href="module-postgres-connector.html#~queryAndCallBack">queryAndCallBack</a></span></li><li class="nav-heading"><span class="nav-item-type type-module">M</span><span class="nav-item-name"><a href="module-spot-server.html">spot-server</a></span></li><li class="nav-item"><span class="nav-item-type type-function">F</span><span class="nav-item-name"><a href="module-spot-server.html#.sendData">sendData</a></span></li><li class="nav-item"><span class="nav-item-type type-function">F</span><span class="nav-item-name"><a href="module-spot-server.html#.sendDatasets">sendDatasets</a></span></li><li class="nav-item"><span class="nav-item-type type-function">F</span><span class="nav-item-name"><a href="module-spot-server.html#.sendDataview">sendDataview</a></span></li><li class="nav-item"><span class="nav-item-type type-function">F</span><span class="nav-item-name"><a href="module-spot-server.html#.sendFacets">sendFacets</a></span></li><li class="nav-item"><span class="nav-item-type type-function">F</span><span class="nav-item-name"><a href="module-spot-server.html#.sendMetaData">sendMetaData</a></span></li><li class="nav-item"><span class="nav-item-type type-function">F</span><span class="nav-item-name"><a href="module-spot-server.html#~run">run</a></span></li><li class="nav-heading"><span class="nav-item-type type-module">M</span><span class="nav-item-name"><a href="module-sql-driver.html">sql-driver</a></span></li><li class="nav-item"><span class="nav-item-type type-function">F</span><span class="nav-item-name"><a href="module-sql-driver.html#~getData">getData</a></span></li><li class="nav-item"><span class="nav-item-type type-function">F</span><span class="nav-item-name"><a href="module-sql-driver.html#~getMetaData">getMetaData</a></span></li><li class="nav-item"><span class="nav-item-type type-function">F</span><span class="nav-item-name"><a href="module-sql-driver.html#~scanData">scanData</a></span></li><li class="nav-item"><span class="nav-item-type type-function">F</span><span class="nav-item-name"><a href="module-sql-driver.html#~setCategories">setCategories</a></span></li><li class="nav-item"><span class="nav-item-type type-function">F</span><span class="nav-item-name"><a href="module-sql-driver.html#~setMinMax">setMinMax</a></span></li><li class="nav-item"><span class="nav-item-type type-function">F</span><span class="nav-item-name"><a href="module-sql-driver.html#~setPercentiles">setPercentiles</a></span></li><li class="nav-heading"><span class="nav-item-type type-module">M</span><span class="nav-item-name"><a href="module-squel-create.html">squel-create</a></span></li>
+</nav>
+
+<div id="main">
+    
+    <h1 class="page-title">postgres-connector.js</h1>
+    
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * PostgreSQL specific functions
+ *
+ * it is using:
+ *  * a pool of database connections
+ *  * native bindings to the pg library
+ *
+ * usage:
+ * ```
+ * var PGConnector = require('./postgres-connector');
+ * var connector = new PGConnector('postgres://localhost');
+ * ```
+ *
+ * For connection settings, see fi. [this page](https://jdbc.postgresql.org/documentation/80/connect.html) for examples.
+ * For securely setting a password [see here](https://www.postgresql.org/docs/9.1/static/libpq-pgpass.html).
+ *
+ * @module postgres-connector
+ */
+
+// With pg-native we will use the (faster) native bindings
+var parseConnection = require('pg-connection-string').parse;
+
+// use the native bindings for slightly more performance
+var pg = require('pg').native;
+
+// Do not do any parsing for postgreSQL datetime types
+var types = require('pg').types;
+var SQLDatetimeTypes = [1082, 1083, 1114, 1184, 1182, 1266];
+SQLDatetimeTypes.forEach(function (type) {
+  types.setTypeParser(type, function (val) { return val; });
+});
+
+// Do not do any parsing for postgreSQL interval type
+types.setTypeParser(1186, function (val) { return val; });
+
+/**
+ * Perform an database query, and perform callback with the result
+ *
+ * @params{Squel.expr} q
+ * @params{function} cb
+ * @params{scope} scope scope for the callback
+ */
+function queryAndCallBack (q, cb, scope) {
+  this.pool.connect(function (err, client, done) {
+    if (err) {
+      return console.error('error fetching client from pool', err);
+    }
+
+    client.query("set intervalstyle = 'iso_8601'; set time zone 'GMT'; " + q.toString(), function (err, result) {
+      done(err);
+
+      if (err) {
+        return console.error('error running query', err);
+      }
+      cb.call(scope, result);
+    });
+  });
+}
+
+module.exports = function (connectionString) {
+  var c = parseConnection(connectionString);
+
+  this.pool = new pg.Pool(c);
+  this.pool.on('error', function (err, client) {
+    console.error('idle client error', err.message, err.stack);
+  });
+
+  this.disconnect = function () {
+    this.pool.end();
+  };
+
+  this.queryAndCallBack = queryAndCallBack;
+};
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<br class="clear">
+
+<footer>
+    Generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.3</a> on Tue May 23 2017 15:08:02 GMT+0200 (CEST) using the Minami theme.
+</footer>
+
+<script>prettyPrint();</script>
+<script src="scripts/linenumber.js"></script>
+</body>
+</html>

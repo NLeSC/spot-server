@@ -1,7 +1,19 @@
-/*
- * NOTE: All methods prefixed with '_' are internal and not exposed via the
- * query builder.
+/**
+ * Extend squel with the 'create table' query
+ *
+ * ```
+ * var squel = require('squel').useFlavour('postgres');
+ * squel.create = require('./squel-create');
+ *
+ * var q = squel.create().table('MYTABLE');
+ * q.field('MYCOLUMN', 'varchar');
+ * ```
+ *
+ * @module squel-create
  */
+
+// NOTE: All methods prefixed with '_' are internal and not exposed via the
+// query builder.
 
 var squel = require('squel');
 

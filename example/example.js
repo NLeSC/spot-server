@@ -1,22 +1,9 @@
 var Spot = require('spot-framework');
-
-// get a new Spot instance
-var spot = new Spot({
-  address: 'http://localhost:3000',
-  sessionType: 'server'
-});
-
-spot.connectToServer();
-
 var dataset;
 var filterA;
 var filterB;
 
-// wait a bit for the connection and to receive datasets
-setTimeout(doSomething, 5000);
-setTimeout(doSomethingElse, 10000);
-setTimeout(doNoMore, 15000);
-
+// initialize a few filters, and ask for data
 function doSomething () {
   dataset = spot.datasets.get('example_data.json', 'name');
   spot.toggleDataset(dataset);
@@ -56,6 +43,7 @@ function doSomething () {
   spot.dataview.getData();
 }
 
+// select some data ranges, and ask the server for new data
 function doSomethingElse () {
   console.log('---------------------------');
   console.log('Selecting \'Jones\'');
@@ -72,7 +60,21 @@ function doSomethingElse () {
   spot.dataview.getData();
 }
 
+// close the connection
 function doNoMore () {
   // finished
   spot.disconnectFromServer();
 }
+
+// get a new Spot instance
+var spot = new Spot({
+  address: 'http://localhost:3000',
+  sessionType: 'server'
+});
+
+spot.connectToServer();
+
+// wait a bit for the connection and to receive datasets
+setTimeout(doSomething, 5000); // initialize a few filters, and ask for data
+setTimeout(doSomethingElse, 10000); // select some data ranges, and ask the server for new data
+setTimeout(doNoMore, 15000); // close the connection

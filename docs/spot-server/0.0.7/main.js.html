@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>main.js - Documentation</title>
+
+    <script src="scripts/prettify/prettify.js"></script>
+    <script src="scripts/prettify/lang-css.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css">
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+<body>
+
+<input type="checkbox" id="nav-trigger" class="nav-trigger" />
+<label for="nav-trigger" class="navicon-button x">
+  <div class="navicon"></div>
+</label>
+
+<label for="nav-trigger" class="overlay"></label>
+
+<nav>
+    <li class="nav-link nav-home-link"><a href="index.html">Home</a></li><li class="nav-heading">Modules</li><li class="nav-heading"><span class="nav-item-type type-module">M</span><span class="nav-item-name"><a href="module-postgres-connector.html">postgres-connector</a></span></li><li class="nav-item"><span class="nav-item-type type-function">F</span><span class="nav-item-name"><a href="module-postgres-connector.html#~queryAndCallBack">queryAndCallBack</a></span></li><li class="nav-heading"><span class="nav-item-type type-module">M</span><span class="nav-item-name"><a href="module-spot-server.html">spot-server</a></span></li><li class="nav-item"><span class="nav-item-type type-function">F</span><span class="nav-item-name"><a href="module-spot-server.html#.sendData">sendData</a></span></li><li class="nav-item"><span class="nav-item-type type-function">F</span><span class="nav-item-name"><a href="module-spot-server.html#.sendDatasets">sendDatasets</a></span></li><li class="nav-item"><span class="nav-item-type type-function">F</span><span class="nav-item-name"><a href="module-spot-server.html#.sendDataview">sendDataview</a></span></li><li class="nav-item"><span class="nav-item-type type-function">F</span><span class="nav-item-name"><a href="module-spot-server.html#.sendFacets">sendFacets</a></span></li><li class="nav-item"><span class="nav-item-type type-function">F</span><span class="nav-item-name"><a href="module-spot-server.html#.sendMetaData">sendMetaData</a></span></li><li class="nav-item"><span class="nav-item-type type-function">F</span><span class="nav-item-name"><a href="module-spot-server.html#~run">run</a></span></li><li class="nav-heading"><span class="nav-item-type type-module">M</span><span class="nav-item-name"><a href="module-sql-driver.html">sql-driver</a></span></li><li class="nav-item"><span class="nav-item-type type-function">F</span><span class="nav-item-name"><a href="module-sql-driver.html#~getData">getData</a></span></li><li class="nav-item"><span class="nav-item-type type-function">F</span><span class="nav-item-name"><a href="module-sql-driver.html#~getMetaData">getMetaData</a></span></li><li class="nav-item"><span class="nav-item-type type-function">F</span><span class="nav-item-name"><a href="module-sql-driver.html#~scanData">scanData</a></span></li><li class="nav-item"><span class="nav-item-type type-function">F</span><span class="nav-item-name"><a href="module-sql-driver.html#~setCategories">setCategories</a></span></li><li class="nav-item"><span class="nav-item-type type-function">F</span><span class="nav-item-name"><a href="module-sql-driver.html#~setMinMax">setMinMax</a></span></li><li class="nav-item"><span class="nav-item-type type-function">F</span><span class="nav-item-name"><a href="module-sql-driver.html#~setPercentiles">setPercentiles</a></span></li><li class="nav-heading"><span class="nav-item-type type-module">M</span><span class="nav-item-name"><a href="module-squel-create.html">squel-create</a></span></li>
+</nav>
+
+<div id="main">
+    
+    <h1 class="page-title">main.js</h1>
+    
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * Spot server module
+ *
+ * For usage and examples, see the ```example``` directory and ```scripts/spot-server.js```.
+ *
+ * Usage:
+ * ```
+ * var Spot = require('spot-framework');
+ * var Server = require('spot-server');
+ * var io = require('socket.io')(http);
+ * var connector = new Server.connectors.Postgres('postgres://localhost');
+ *
+ * var spot = new Spot({
+ *   sessionType: 'server'
+ * });
+ *
+ * var server = new Server(io, connector, spot);
+ * server.run();
+ * ```
+ *
+ * @module spot-server
+ */
+var Dataview = require('spot-framework').constructors.Dataview;
+var Dataset = require('spot-framework').constructors.Dataset;
+var Datasets = require('spot-framework').constructors.Datasets;
+
+var driver = require('./sql-driver');
+
+/**
+ * Connect to the websocket and start listening
+ */
+function run (io, server) {
+  var dataview = new Dataview();
+  var dataset = new Dataset();
+  var datasets = new Datasets();
+
+  /*
+   * Setup socket callback functions
+   */
+  io.on('connection', function (socket) {
+    console.log('Connecting to client');
+
+    /**
+     * @function
+     */
+    socket.on('getDatasets', function (req) {
+      server.sendDatasets(server.spot.datasets);
+    });
+
+    /**
+     * @function
+     * @params {Object} req
+     * @params {string} req.dataset Serialized dataset
+     */
+    socket.on('scanData', function (req) {
+      dataset.set(req.dataset);
+      driver.scanData(server, dataset);
+    });
+
+    /**
+     * @function
+     * @params {Object} req
+     * @params {string} req.datasets Serialized datasets
+     * @params {string} req.dataview Serialized dataview
+     */
+    socket.on('getMetaData', function (req) {
+      console.time(req.dataview.id + ': getMetaData');
+      datasets.reset(req.datasets);
+      dataview = new Dataview(req.dataview);
+      driver.getMetaData(server, datasets, dataview);
+    });
+
+    /**
+     * @function
+     * @params {Object} req
+     * @params {string} req.datasets Serialized datasets
+     * @params {string} req.dataview Serialized dataview
+     */
+    socket.on('getData', function (req) {
+      datasets.reset(req.datasets);
+      dataview = new Dataview(req.dataview);
+
+      dataview.filters.forEach(function (filter) {
+        console.time(filter.getId() + ': getData');
+        driver.getData(server, datasets, dataview, filter);
+      });
+
+      console.time(dataview.getId() + ': getMetaData');
+      driver.getMetaData(server, datasets, dataview);
+    });
+
+    /**
+     * @function
+     * @params {Object} req
+     * @params {string} req.dataset Serialized dataset
+     * @params {string} req.facetId of the facet
+     */
+    socket.on('setMinMax', function (req) {
+      dataset.set(req.dataset);
+      driver.setMinMax(server, dataset, dataset.facets.get(req.facetId));
+    });
+
+    /**
+     * @function
+     * @params {Object} req
+     * @params {string} req.dataset Serialized dataset
+     * @params {string} req.facetId of the facet
+     */
+    socket.on('setCategories', function (req) {
+      dataset.set(req.dataset);
+      driver.setCategories(server, dataset, dataset.facets.get(req.facetId));
+    });
+
+    /**
+     * @function
+     * @params {string} req.dataset Serialized dataset
+     * @params {string} req.facetId of the facet
+     */
+    socket.on('setPercentiles', function (req) {
+      dataset.set(req.dataset);
+      driver.setPercentiles(server, dataset, dataset.facets.get(req.facetId));
+    });
+
+    socket.on('disconnect', function () {
+      // we keep no track of connections, so nothing to be done here
+      console.log('Client requests: disconnect');
+    });
+
+    // send current datasets to the new connection
+    server.sendDatasets(server.spot.datasets);
+  });
+}
+
+module.exports = function SpotServer (io, connector, spot) {
+  this.io = io; // web socket to serve on
+  this.connector = connector;
+  this.spot = spot;
+
+  this.run = function () {
+    run(io, this);
+  };
+
+  /**
+   * Send Datasets from the server to the client
+   *
+   * @params {Datasets} datasets
+   * { data: datasets.toJSON }
+   */
+  this.sendDatasets = function (datasets) {
+    io.emit('syncDatasets', {
+      data: datasets.toJSON()
+    });
+  };
+
+  /**
+   * Send Dataview from the server to the client
+   *
+   * @params {Datasets} datasets
+   * { data: dataview.toJSON }
+   */
+  this.sendDataview = function (dataview) {
+    io.emit('syncDataview', {
+      data: dataview.toJSON()
+    });
+  };
+
+  /**
+   * Send Facets of a dataset from the server to the client
+   *
+   * @params {Dataset} dataset
+   * { datasetId: dataset.getId(), data: facets.toJSON() }
+   */
+  this.sendFacets = function (dataset) {
+    io.emit('syncFacets', {
+      datasetId: dataset.getId(),
+      data: dataset.facets.toJSON()
+    });
+    console.timeEnd(dataset.getId() + ': syncFacets');
+  };
+
+  /**
+   * Send data from the server to the client
+   * @params {Filter} filter
+   * @params {Data} data
+   * { filterId: filter.getId(), data: data }
+   */
+  this.sendData = function (filter, data) {
+    io.emit('newData', {
+      filterId: filter.getId(),
+      data: data
+    });
+    console.timeEnd(filter.getId() + ': getData');
+  };
+
+  /**
+   * Send metadata from the server to the client
+   * @params {Dataview} dataview
+   * @params {number} total
+   * @params {number} selected
+   * { dataTotal: total, dataSelected: selected }
+   */
+  this.sendMetaData = function (dataview, total, selected) {
+    io.emit('newMetaData', {
+      dataTotal: total,
+      dataSelected: selected
+    });
+    console.timeEnd(dataview.getId() + ': getMetaData');
+  };
+};
+
+module.exports.connectors = {
+  Postgres: require('./postgres-connector')
+};
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<br class="clear">
+
+<footer>
+    Generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.3</a> on Tue May 23 2017 15:08:02 GMT+0200 (CEST) using the Minami theme.
+</footer>
+
+<script>prettyPrint();</script>
+<script src="scripts/linenumber.js"></script>
+</body>
+</html>
