@@ -3,7 +3,7 @@ var http = require('http').Server(app);
 var io = require('socket.io')(http);
 
 var Spot = require('spot-framework');
-var Server = require('..');
+var SpotServer = require('..');
 var commandLineArgs = require('command-line-args');
 var commandLineUsage = require('command-line-usage');
 var fs = require('fs');
@@ -56,28 +56,25 @@ if (Object.keys(options).length === 0 || options.help) {
 
 // no connection string
 if (!options.connectionString) {
-  console.error('Give connection string');
+  console.error('No connection string');
+  process.exit(1);
+}
+
+// no session file
+if (!options.session) {
+  console.error('No session file');
   process.exit(1);
 }
 
 // Initialize
 // **********
-var spot;
+var spot = new Spot(JSON.parse(fs.readFileSync(options.session, 'utf8')));
+spot.datasets.forEach(function (d, i) {
+  console.log(i, d.getId(), d.name);
+});
 
-if (options.session) {
-  spot = new Spot(JSON.parse(fs.readFileSync(options.session, 'utf8')));
-  spot.datasets.forEach(function (d, i) {
-    console.log(i, d.getId(), d.name);
-  });
-} else {
-  // TODO: What to do without a session file? Probably scan the dataset.
-  spot = new Spot({
-    sessionType: 'server'
-  });
-}
-
-var connector = new Server.connectors.Postgres(options.connectionString);
-var server = new Server(io, connector, spot);
+var connector = new SpotServer.connectors.Postgres(options.connectionString);
+var server = new SpotServer(io, connector, spot);
 
 app.get('/', function (req, res) {
   var html = '<h1>Hello World</h1>';
