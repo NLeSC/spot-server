@@ -1,4 +1,5 @@
-var app = require('express')();
+var express = require('express');
+var app = express();
 var http = require('http').Server(app);
 var io = require('socket.io')(http);
 
@@ -29,6 +30,18 @@ var optionDefinitions = [
     alias: 's',
     type: String,
     description: 'A saved session with configured datasets'
+  },
+  {
+    name: 'www',
+    alias: 'w',
+    type: String,
+    description: 'Location (directory) containing an index.html to host'
+  },
+  {
+    name: 'port',
+    alias: 'p',
+    type: Number,
+    description: 'Port number to start the server on (default: 8000)'
   }
 ];
 
@@ -66,6 +79,11 @@ if (!options.session) {
   process.exit(1);
 }
 
+// port number
+if (!options.port) {
+  options.port = 8000;
+}
+
 // Initialize
 // **********
 var spot = new Spot(JSON.parse(fs.readFileSync(options.session, 'utf8')));
@@ -76,12 +94,13 @@ spot.datasets.forEach(function (d, i) {
 var connector = new SpotServer.connectors.Postgres(options.connectionString);
 var server = new SpotServer(io, connector, spot);
 
-app.get('/', function (req, res) {
-  var html = '<h1>Hello World</h1>';
-  res.send(html);
+// serve static files the given directory
+app.use(express.static(options.www));
+app.get('*', function (req, res, next) {
+  res.sendFile(options.www + '/index.html');
 });
 
 server.run();
-http.listen(3000, function () {
-  console.log('listening on *:3000');
+http.listen(options.port, function () {
+  console.log('listening on ', options.port);
 });
