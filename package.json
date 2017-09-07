@@ -37,6 +37,7 @@
   "dependencies": {
     "command-line-args": "^3.0.5",
     "command-line-usage": "^4.0.0",
+    "express": "^4.15.4",
     "pg": "^6.1.0",
     "pg-copy-streams": "^1.2.0",
     "pg-native": "^1.10.0",
@@ -54,12 +55,9 @@
     "semistandard": "^9.0.0",
     "socket.io": "^1.4.6",
     "socket.io-client": "^1.4.6",
-    "squel": "^5.3.2",
-    "uglify-js": "^2.6.2"
+    "squel": "^5.3.2"
   },
   "scripts": {
-    "uglify": "browserify client/app.js  | uglifyjs --no-source-map --screw-ie8 > dist/app.js",
-    "dist": "npm run templates && npm run css && npm run uglify",
     "start": "node src/spot-server.js -c postgres://localhost -s session.json",
     "check": "semistandard && jasmine",
     "doc": "jsdoc -c .jsdoc.json -d docs --package package.json --readme README.md src",

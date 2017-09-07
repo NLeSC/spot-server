@@ -5,6 +5,9 @@
 [![js-semistandard-style](https://img.shields.io/badge/code%20style-semistandard-brightgreen.svg?style=flat-square)](https://github.com/Flet/semistandard)
 
 Part of the spot-framework, spot-server provides a connection a to a database (currently PostgreSQL) instead of the default crossfilter backend.
+It will also host a static website fi. [spot](https://github.com/NLeSC/spot) using Express.
+
+API documenation [can be found here](https://nlesc.github.io/spot-server).
 
 ## scripts
 
@@ -31,4 +34,4 @@ If node crashes with `heap out of memory`, increase it using `node --max_old_spa
 
 Facet accessor can be set by the client, and is used unchecked in the query.
 Recommended to limit spot-server PostgreSQL privilege to read only.
-See for instance (this blog post)[https://blog.ed.gs/2016/01/12/add-read-only-postgres-user/]
+See for instance [this blog post](https://blog.ed.gs/2016/01/12/add-read-only-postgres-user/)
