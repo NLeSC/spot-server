@@ -4,7 +4,7 @@ var filterA;
 var filterB;
 
 // initialize a few filters, and ask for data
-function doSomething () {
+function initializeFilters () {
   dataset = spot.datasets.get('example_data.json', 'name');
   spot.toggleDataset(dataset);
 
@@ -44,7 +44,7 @@ function doSomething () {
 }
 
 // select some data ranges, and ask the server for new data
-function doSomethingElse () {
+function changeFiltering () {
   console.log('---------------------------');
   console.log('Selecting \'Jones\'');
   console.log('---------------------------');
@@ -61,20 +61,17 @@ function doSomethingElse () {
 }
 
 // close the connection
-function doNoMore () {
+function closeConnection () {
   // finished
   spot.disconnectFromServer();
 }
 
 // get a new Spot instance
-var spot = new Spot({
-  address: 'http://localhost:3000',
-  sessionType: 'server'
-});
+var spot = new Spot({ sessionType: 'server' });
 
-spot.connectToServer();
+spot.connectToServer('http://localhost:8000');
 
-// wait a bit for the connection and to receive datasets
-setTimeout(doSomething, 5000); // initialize a few filters, and ask for data
-setTimeout(doSomethingElse, 10000); // select some data ranges, and ask the server for new data
-setTimeout(doNoMore, 15000); // close the connection
+spot.socket.emit('getDatasets'); // and ask for data
+setTimeout(initializeFilters, 15000); // initialize a few filters, and ask for data
+setTimeout(changeFiltering, 20000); // select some data ranges, and ask the server for new data
+setTimeout(closeConnection, 25000); // close the connection

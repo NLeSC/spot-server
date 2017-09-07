@@ -122,9 +122,6 @@ function run (io, server) {
       // we keep no track of connections, so nothing to be done here
       console.log('Client requests: disconnect');
     });
-
-    // send current datasets to the new connection
-    server.sendDatasets(server.spot.datasets);
   });
 }
 

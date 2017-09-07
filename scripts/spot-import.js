@@ -265,9 +265,12 @@ function uploadDataset (spot, options, dataset) {
 }
 
 function writeSession (spot, options) {
+  var json = spot.toJSON();
+  json.sessionType = 'server';
+
   // write
   console.log('Writing session');
-  fs.writeFileSync(options.session, JSON.stringify(spot.toJSON(), null, '\t'));
+  fs.writeFileSync(options.session, JSON.stringify(json, null, '\t'));
 }
 
 // *********************
