@@ -659,7 +659,7 @@ function setPercentiles (server, dataset, facet) {
     server.sendFacets(dataset);
   })
   .catch(function (error) {
-    throw new Error('Cannot set percentiles:' + error.messag);
+    throw new Error('Cannot set percentiles:' + error.message);
   });
 }
 
@@ -688,7 +688,7 @@ function setMinMax (server, dataset, facet) {
     server.sendFacets(dataset);
   })
   .catch(function (error) {
-    throw new Error('Cannot set range:' + error.messag);
+    throw new Error('Cannot set range:' + error.message);
   });
 }
 
@@ -730,7 +730,7 @@ function setCategories (server, dataset, facet) {
     server.syncFacets(dataset);
   })
   .catch(function (error) {
-    throw new Error('Cannot set categories:' + error.messag);
+    throw new Error('Cannot set categories:' + error.message);
   });
 }
 
@@ -750,7 +750,7 @@ function scanData (server, dataset) {
     server.sendFacets(dataset);
   })
   .catch(function (error) {
-    throw new Error('Cannot scan data:' + error.messag);
+    throw new Error('Cannot scan data:' + error.message);
   });
 }
 
@@ -913,7 +913,7 @@ function getData (server, datasets, dataview, filter) {
     server.sendData(filter, rows);
   })
   .catch(function (error) {
-    throw new Error('Cannot get data:' + error.messag);
+    throw new Error('Cannot get data:' + error.message);
   });
 }
 
@@ -1017,7 +1017,7 @@ function getMetaData (server, datasets, dataview) {
     server.sendMetaData(dataview, result.rows[0].total, result.rows[0].selected);
   })
   .catch(function (error) {
-    throw new Error('Cannot get metadata:' + error.messag);
+    throw new Error('Cannot get metadata:' + error.message);
   });
 }
 

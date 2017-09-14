@@ -89,9 +89,13 @@ function run (io, server) {
       });
 
       console.time(dataview.getId() + ': getMetaData');
-      Promise
-        .all(singleRequests)
-        .then(driver.getMetaData(server, datasets, dataview));
+      Promise.all(singleRequests)
+      .then(function (values) {
+        return driver.getMetaData(server, datasets, dataview);
+      })
+      .catch(function (error) {
+        throw new Error('Cannot finish getData: ' + error.message);
+      });
     });
 
     /**
