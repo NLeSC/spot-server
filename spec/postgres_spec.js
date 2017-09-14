@@ -26,9 +26,13 @@ describe('PostgreSQL query generation functions for datetimes', function () {
   var doCallBack = function (transform, scope, done) {
     var expression = 'SELECT ' + driver.transformExpression("'2016-01-01T00:00:00.000Z'::timestamptz", 'datetime', transform) + ' AS result';
 
-    connector.queryAndCallBack(expression, function (data) {
+    connector.query(expression)
+    .then(function (data) {
       scope.result = data.rows[0].result;
       done();
+    })
+    .catch(function (error) {
+      throw (error);
     });
   };
 
@@ -94,9 +98,13 @@ describe('PostgreSQL query generation functions for durations: ', function () {
   var doCallBack = function (transform, scope, done) {
     var expression = 'SELECT ' + driver.transformExpression("interval 'P10D'", 'duration', transform) + ' AS result';
 
-    connector.queryAndCallBack(expression, function (data) {
+    connector.query(expression)
+    .then(function (data) {
       scope.result = data.rows[0].result;
       done();
+    })
+    .catch(function (error) {
+      throw (error);
     });
   };
 

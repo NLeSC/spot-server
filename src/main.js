@@ -68,22 +68,30 @@ function run (io, server) {
     });
 
     /**
+     * Send data for each filter in the dataview, and then send new meta data
+     * Filter data is guaranteed to be send first, so after receiving meta data
+     * at the client, all filters have been updated
+     *
      * @function
      * @params {Object} req
      * @params {string} req.datasets Serialized datasets
      * @params {string} req.dataview Serialized dataview
      */
     socket.on('getData', function (req) {
+      var singleRequests = [];
+
       datasets.reset(req.datasets);
       dataview = new Dataview(req.dataview);
 
       dataview.filters.forEach(function (filter) {
         console.time(filter.getId() + ': getData');
-        driver.getData(server, datasets, dataview, filter);
+        singleRequests.push(driver.getData(server, datasets, dataview, filter));
       });
 
       console.time(dataview.getId() + ': getMetaData');
-      driver.getMetaData(server, datasets, dataview);
+      Promise
+        .all(singleRequests)
+        .then(driver.getMetaData(server, datasets, dataview));
     });
 
     /**

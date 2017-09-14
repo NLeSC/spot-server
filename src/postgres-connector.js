@@ -34,25 +34,30 @@ SQLDatetimeTypes.forEach(function (type) {
 types.setTypeParser(1186, function (val) { return val; });
 
 /**
- * Perform an database query, and perform callback with the result
+ * Perform an database query, and return a Promise
  *
  * @params{Squel.expr} q
- * @params{function} cb
- * @params{scope} scope scope for the callback
+ * @return {Promise} A promise object
+ *
  */
-function queryAndCallBack (q, cb, scope) {
-  this.pool.connect(function (err, client, done) {
-    if (err) {
-      return console.error('error fetching client from pool', err);
-    }
+function query (q) {
+  var connector = this;
 
-    client.query("set intervalstyle = 'iso_8601'; set time zone 'GMT'; " + q.toString(), function (err, result) {
-      done(err);
-
+  return new Promise(function (resolve, reject) {
+    connector.pool.connect(function (err, client, done) {
       if (err) {
-        return console.error('error running query', err);
+        return console.error('error fetching client from pool', err);
       }
-      cb.call(scope, result);
+
+      client.query("set intervalstyle = 'iso_8601'; set time zone 'GMT'; " + q.toString(), function (err, result) {
+        done(err);
+
+        if (err) {
+          console.error('error running query', err);
+          reject(Error(err));
+        }
+        resolve(result);
+      });
     });
   });
 }
@@ -69,5 +74,5 @@ module.exports = function (connectionString) {
     this.pool.end();
   };
 
-  this.queryAndCallBack = queryAndCallBack;
+  this.query = query;
 };

@@ -621,6 +621,7 @@ function whereSelected (facet, subFacet, partition) {
  * @params {Server} server Spot server
  * @params {Dataset} Dataset
  * @params {Facet} facet
+ * @return {Promise} A promise for emitting 'syncFacets' on the socket
  */
 function setPercentiles (server, dataset, facet) {
   facet.continuousTransform.reset();
@@ -637,7 +638,8 @@ function setPercentiles (server, dataset, facet) {
     query += ' WHERE ' + valid;
   }
 
-  server.connector.queryAndCallBack(query, function (data) {
+  return server.connector.query(query)
+  .then(function (data) {
     data.rows.forEach(function (row, i) {
       var prevX = null;
       var ncps = facet.continuousTransform.cps.length;
@@ -655,6 +657,9 @@ function setPercentiles (server, dataset, facet) {
     });
     facet.continuousTransform.type = 'percentiles';
     server.sendFacets(dataset);
+  })
+  .catch(function (error) {
+    throw new Error('Cannot set percentiles:' + error.messag);
   });
 }
 
@@ -664,6 +669,7 @@ function setPercentiles (server, dataset, facet) {
  * @params {Server} server Spot server
  * @params {Dataset} Dataset
  * @params {Facet} facet
+ * @return {Promise} A promise for emitting 'syncFacets' on the socket
  */
 function setMinMax (server, dataset, facet) {
   var query = squel.select()
@@ -672,13 +678,17 @@ function setMinMax (server, dataset, facet) {
     .field('MAX(' + esc(facet.accessor) + ')', 'max')
     .where(whereValid(facet).toString());
 
-  server.connector.queryAndCallBack(query, function (result) {
+  return server.connector.query(query)
+  .then(function (result) {
     if (result.rows && result.rows.length > 0) {
       facet.minvalAsText = result.rows[0].min.toString();
       facet.maxvalAsText = result.rows[0].max.toString();
     }
 
     server.sendFacets(dataset);
+  })
+  .catch(function (error) {
+    throw new Error('Cannot set range:' + error.messag);
   });
 }
 
@@ -689,6 +699,7 @@ function setMinMax (server, dataset, facet) {
  * @params {Server} server Spot server
  * @param {Dataset} dataset
  * @param {Facet} facet
+ * @return {Promise} A promise for emitting 'syncFacets' on the socket
  */
 function setCategories (server, dataset, facet) {
   var query;
@@ -703,7 +714,8 @@ function setCategories (server, dataset, facet) {
     .group('category')
     .order('count', false);
 
-  server.connector.queryAndCallBack(query, function (result) {
+  return server.connector.query(query)
+  .then(function (result) {
     var rows = result.rows;
 
     facet.categorialTransform.rules.reset();
@@ -716,6 +728,9 @@ function setCategories (server, dataset, facet) {
       });
     });
     server.syncFacets(dataset);
+  })
+  .catch(function (error) {
+    throw new Error('Cannot set categories:' + error.messag);
   });
 }
 
@@ -725,12 +740,17 @@ function setCategories (server, dataset, facet) {
  *
  * @params {Server} server Spot server
  * @params {Dataset} dataset Dataset to scan
+ * @return {Promise} A promise for emitting 'syncFacets' on the socket
  */
 function scanData (server, dataset) {
   var query = squel.select().distinct().from(esc(dataset.databaseTable)).limit(50);
-  server.connector.queryAndCallBack(query, function (data) {
+  return server.connector.query(query)
+  .then(function (data) {
     server.parseRows(data, dataset);
     server.sendFacets(dataset);
+  })
+  .catch(function (error) {
+    throw new Error('Cannot scan data:' + error.messag);
   });
 }
 
@@ -806,6 +826,7 @@ function subTableQuery (dataview, dataset, currentFilter) {
  * @params {Dataset[]} datasets
  * @params {Dataview} dataview
  * @params {Filter} filter
+ * @return {Promise} A promise for emitting 'newData' on the socket
  */
 function getData (server, datasets, dataview, filter) {
   var query = squel.select();
@@ -864,7 +885,8 @@ function getData (server, datasets, dataview, filter) {
   // query.limit();
 
   console.log(filter.id + ': ' + query.toString());
-  server.connector.queryAndCallBack(query, function (result) {
+  return server.connector.query(query)
+  .then(function (result) {
     // Post process
     var rows = result.rows;
 
@@ -889,6 +911,9 @@ function getData (server, datasets, dataview, filter) {
       });
     });
     server.sendData(filter, rows);
+  })
+  .catch(function (error) {
+    throw new Error('Cannot get data:' + error.messag);
   });
 }
 
@@ -919,6 +944,7 @@ function getData (server, datasets, dataview, filter) {
  * @params {Server} server
  * @params {Dataset[]} datasets
  * @params {Dataview} dataview
+ * @return {Promise} A promise for emitting 'newMetaData' on the socket
  */
 function getMetaData (server, datasets, dataview) {
   var query = squel.select();
@@ -986,8 +1012,12 @@ function getMetaData (server, datasets, dataview) {
   query.from(totalUnion, 'total');
 
   console.log(dataview.id + ': ' + query.toString());
-  server.connector.queryAndCallBack(query, function (result) {
+  return server.connector.query(query)
+  .then(function (result) {
     server.sendMetaData(dataview, result.rows[0].total, result.rows[0].selected);
+  })
+  .catch(function (error) {
+    throw new Error('Cannot get metadata:' + error.messag);
   });
 }
 
