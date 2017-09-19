@@ -13,7 +13,8 @@ API documenation [can be found here](https://nlesc.github.io/spot-server).
 The current backend is a [PostgreSQL](https://www.postgresql.org) database. Spot requires either a local or a remote service to run. Commutication between the client and the database server is achieved by using [web socket](https://github.com/socketio/socket.io).
 Before running the scripts, make sure that the Postgres server is up and running.
 
- - **Hint**: You may want to use [PostreSQL Docker image](https://hub.docker.com/_/postgres) for quick testing.
+ - **Hint**: You may want to use [PostreSQL Docker image](https://hub.docker.com/_/postgres) for quick testing, if you don't have postgress installed on your system
+ - make sure your postgres user does not need a password
  - [pg_isready](https://www.postgresql.org/docs/9.3/static/app-pg-isready.html) command might be useful to check the server status.
 
 ## scripts
@@ -25,7 +26,7 @@ It uses a session file to keep track of database tables to serve.
 
 Usage:
 ```bash
-node scripts/spot-server.js -c 'postgres://USER<:PASSWORD>@localhost/DATABASE' -s session_file.json -w <SPOT_DIR>/dist/
+node scripts/spot-server.js -c 'postgres://USER@localhost/DATABASE' -s 'session_file.json' -w <SPOT_DIR>/dist/
 ```
 
 Here, `SPOT_DIR` directs to the directory where you cloned and build the [spot app](https://github.com/NLeSC/spot).
@@ -47,7 +48,7 @@ Import files (CSV, JSON) into the database.
 It also creates a session file. Usage:
 
 ```bash
-node ./scripts/spot-import.js -c 'postgres://USER<:PASSWORD>@localhost/DATABASE' \
+node ./scripts/spot-import.js -c 'postgres://USER@localhost/DATABASE' \
 -t 'data_table' \
 -s 'session_file.json' \
 -u 'http://DATA_URL' \
