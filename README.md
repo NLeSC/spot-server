@@ -10,7 +10,9 @@ It will also host a static website fi. [spot](https://github.com/NLeSC/spot) usi
 API documenation [can be found here](https://nlesc.github.io/spot-server).
 
 ## prerequisites
-The current backend is a [PostgreSQL](https://www.postgresql.org) database. Spot requires either a local or a remote service to run. Commutication between the client and the database server is achieved by using [web socket](https://github.com/socketio/socket.io).
+- [PostgreSQL](https://www.postgresql.org) v9.5 or higher
+
+Spot requires either a local or a remote service to run. Commutication between the client and the database server is achieved by using [web socket](https://github.com/socketio/socket.io).
 Before running the scripts, make sure that the Postgres server is up and running.
 
  - **Hint**: You may want to use [PostreSQL Docker image](https://hub.docker.com/_/postgres) for quick testing, if you don't have postgress installed on your system
@@ -26,11 +28,11 @@ It uses a session file to keep track of database tables to serve.
 
 Usage:
 ```bash
-node scripts/spot-server.js -c 'postgres://USER@localhost/DATABASE' -s 'session_file.json' -w <SPOT_DIR>/dist/
+node scripts/spot-server.js -c 'postgres://USER@localhost/DATABASE' -s 'session_file.json' -w <SPOT_DIST>
 ```
 
-Here, `SPOT_DIR` directs to the directory where you cloned and build the [spot app](https://github.com/NLeSC/spot).
-
+Here, `SPOT_DIST` should be an absolute path to the directory with the built version of [spot app](https://github.com/NLeSC/spot). You can either use the pre-built [dist directory](https://github.com/NLeSC/spot/tree/app/dist) or build it yourself using `npm run dist`.
+ 
 run following command to see available options:
 ```bash
 node scripts/spot-server.js --help
