@@ -51,6 +51,7 @@ function run (io, server) {
      * @params {string} req.dataset Serialized dataset
      */
     socket.on('scanData', function (req) {
+      console.log('Scanning database');
       console.time(req.dataset.id + ': syncFacets');
       dataset.set(req.dataset);
       driver.scanData(server, dataset);

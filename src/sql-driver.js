@@ -746,7 +746,7 @@ function scanData (server, dataset) {
   var query = squel.select().distinct().from(esc(dataset.databaseTable)).limit(50);
   return server.connector.query(query)
   .then(function (data) {
-    server.parseRows(data, dataset);
+    server.connector.parseRows(data, dataset);
     server.sendFacets(dataset);
   })
   .catch(function (error) {
