@@ -41,6 +41,7 @@ function run (io, server) {
      * @function
      */
     socket.on('getDatasets', function (req) {
+      console.log('Sending datasets');
       server.sendDatasets(server.spot.datasets);
     });
 
@@ -50,6 +51,7 @@ function run (io, server) {
      * @params {string} req.dataset Serialized dataset
      */
     socket.on('scanData', function (req) {
+      console.time(req.dataset.id + ': syncFacets');
       dataset.set(req.dataset);
       driver.scanData(server, dataset);
     });
@@ -105,6 +107,7 @@ function run (io, server) {
      * @params {string} req.facetId of the facet
      */
     socket.on('setMinMax', function (req) {
+      console.time(req.dataset.id + ': syncFacets');
       dataset.set(req.dataset);
       driver.setMinMax(server, dataset, dataset.facets.get(req.facetId));
     });
@@ -116,6 +119,7 @@ function run (io, server) {
      * @params {string} req.facetId of the facet
      */
     socket.on('setCategories', function (req) {
+      console.time(req.dataset.id + ': syncFacets');
       dataset.set(req.dataset);
       driver.setCategories(server, dataset, dataset.facets.get(req.facetId));
     });
@@ -126,6 +130,7 @@ function run (io, server) {
      * @params {string} req.facetId of the facet
      */
     socket.on('setPercentiles', function (req) {
+      console.time(req.dataset.id + ': syncFacets');
       dataset.set(req.dataset);
       driver.setPercentiles(server, dataset, dataset.facets.get(req.facetId));
     });
