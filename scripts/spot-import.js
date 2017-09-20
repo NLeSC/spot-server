@@ -3,6 +3,8 @@ var commandLineUsage = require('command-line-usage');
 
 var fs = require('fs');
 
+var prompt = require('prompt');
+
 var csvParse = require('csv-parse');
 var csvStringify = require('csv-stringify');
 var csvTransform = require('stream-transform');
@@ -68,6 +70,12 @@ var optionDefinitions = [
     alias: 'd',
     type: String,
     description: 'Dataset description'
+  },
+  {
+    name: 'interactive',
+    alias: 'i',
+    type: Boolean,
+    description: 'Interactively define data types'
   }
 ];
 
@@ -179,22 +187,63 @@ function uploadDataset (spot, options, dataset) {
   dataset.scan();
 
   // create a table with a column per facet
+
+  let dtypes = {};
+  dataset.facets.forEach(function (facet) {
+    facet.isActive = true;
+    var dtype;
+    if (facet.isCategorial) {
+      dtype = 'varchar';
+    } else if (facet.isContinuous) {
+      dtype = 'real';
+    } else if (facet.isDatetime) {
+      dtype = 'timestamp with time zone';
+    } else if (facet.isDuration) {
+      dtype = 'interval';
+    } else if (facet.isText) {
+      dtype = 'varchar';
+    }
+    dtypes[facet.name] = dtype;
+  });
+
+  if(options.interactive){
+    var promptSchema = {properties: {}};
+    dataset.facets.forEach(function (facet) {
+      promptSchema.properties[facet.name] = {
+        default: dtypes[facet.name],
+        pattern: /(varchar)|(real)|(interval)|(timestamp\ with\ time\ zone)/,
+        message: 'Should be one of: varchar, real, timestamp with time zone, interval'
+      }
+    });
+    console.log("Indicate the datatype of the facets. Should be one of: varchar, real, timestamp with time zone, interval");
+    let inputType = new Promise( (resolve, reject) => {
+
+        prompt.start();
+        prompt.get(promptSchema, function(err, result){
+          if(err){
+            console.error(error);
+            process.exit(1);
+          }
+          resolve(result);
+        });
+      });
+      inputType.then(function(result){
+        dtypes = result;
+        pushFacets(spot, options, dataset, dtypes);
+      })
+  }
+  else {
+    pushFacets(spot, options, dataset, dtypes);
+  }
+}
+
+function pushFacets(spot, options, dataset, dtypes){
   var columns = [];
   var valueFns = {};
   var q = squel.create().table(options.table);
-
   dataset.facets.forEach(function (facet) {
-    facet.isActive = true;
-    if (facet.isCategorial) {
-      q.field(facet.name, 'varchar');
-    } else if (facet.isContinuous) {
-      q.field(facet.name, 'real');
-    } else if (facet.isDatetime) {
-      q.field(facet.name, 'timestamp with time zone');
-    } else if (facet.isDuration) {
-      q.field(facet.name, 'interval');
-    } else if (facet.isText) {
-      q.field(facet.name, 'varchar');
+    if(dtypes[facet.name]) {
+      q.field(facet.name, dtypes[facet.name]);
     }
     columns.push(facet.name);
     valueFns[facet.name] = Spot.util.dx.valueFn(facet);
