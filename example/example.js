@@ -1,11 +1,19 @@
 var Spot = require('spot-framework');
-var dataset;
 var filterA;
 var filterB;
 
+// get a new Spot instance
+var spot = new Spot({ sessionType: 'server' });
+
+// connect to the server
+spot.connectToServer('http://localhost:8000');
+
+// get available datasets form the server
+spot.getDatasets()
+
 // initialize a few filters, and ask for data
-function initializeFilters () {
-  dataset = spot.datasets.get('example_data.json', 'name');
+.then(function (datasets) {
+  var dataset = spot.datasets.get('example_data.json', 'name');
   spot.toggleDataset(dataset);
 
   // add some filters
@@ -29,24 +37,20 @@ function initializeFilters () {
   filterA.initDataFilter();
   filterB.initDataFilter();
 
-  // listen to data
-  filterA.on('newData', function () {
-    console.log('data filterA: group by last name, average of age');
-    console.log(this.data);
-  }, filterA);
-
-  filterB.on('newData', function () {
-    console.log('data filterB: binned by age in [5, 27) labelled "16", and (27, 49] labelled "38":');
-    console.log(this.data);
-  }, filterB);
-
-  spot.dataview.getData();
-}
+  return spot.dataview.getData();
+})
 
 // select some data ranges, and ask the server for new data
-function changeFiltering () {
+.then(function () {
+  console.log(' = = = = = =');
+  console.log('data filterA: group by last name, average of age');
+  console.log(filterA.data);
+  console.log(' = = = = = =');
+  console.log('data filterB: binned by age in [5, 27) labelled "16", and (27, 49] labelled "38":');
+  console.log(filterB.data);
+
   console.log('---------------------------');
-  console.log('Selecting \'Jones\'');
+  console.log('Selecting \'Jones\' in filterA');
   console.log('---------------------------');
 
   // select 'Jones' on filterA
@@ -57,21 +61,23 @@ function changeFiltering () {
   });
   filterA.updateDataFilter();
 
-  spot.dataview.getData();
-}
+  return spot.dataview.getData();
+})
 
-// close the connection
-function closeConnection () {
-  // finished
+// show the filterd data
+.then(function () {
+  console.log(' = = = = = =');
+  console.log('data filterA: group by last name, average of age');
+  console.log(filterA.data);
+  console.log(' = = = = = =');
+  console.log('data filterB: binned by age in [5, 27) labelled "16", and (27, 49] labelled "38":');
+  console.log(filterB.data);
+
+  console.log('Done, disconnecting');
   spot.disconnectFromServer();
-}
+})
 
-// get a new Spot instance
-var spot = new Spot({ sessionType: 'server' });
-
-spot.connectToServer('http://localhost:8000');
-
-spot.socket.emit('getDatasets'); // and ask for data
-setTimeout(initializeFilters, 15000); // initialize a few filters, and ask for data
-setTimeout(changeFiltering, 20000); // select some data ranges, and ask the server for new data
-setTimeout(closeConnection, 25000); // close the connection
+// deal with asynchronous errors
+.catch(function (error) {
+  console.error('An error has occured: ' + error.message);
+});
