@@ -755,7 +755,16 @@ function scanData (server, dataset) {
       if (facet.isContinuous || facet.isDatetime || facet.isDuration) {
         setMinMax(server, dataset, facet);
       } else if (facet.isCategorial) {
-        setCategories(server, dataset, facet);
+        server.connector.query('SELECT COUNT(DISTINCT ' + facet.accessor + ') as COUNT FROM ' + dataset.databaseTable)
+        .then(function (data) {
+          var count = data.rows[0].count;
+          if (count > 75) { // TODO: is this a reasonable maximum limit on the number of categories?
+            facet.type = 'text';
+            server.sendFacets(dataset);
+          } else {
+            setCategories(server, dataset, facet);
+          }
+        });
       } else {
         console.warn('Cannot scan facet: ', facet.type);
       }
@@ -800,6 +809,28 @@ function subTableQuery (dataview, dataset, currentFilter) {
       query.field('sum (' + esc(subfacet.accessor) + ' * ' + esc(subfacet.accessor) + ' )', aggregateToName[aggregate.rank] + '_ss');
     }
     query.where(whereValid(subfacet));
+  });
+
+  currentFilter.partitions.forEach(function (partition) {
+    var subFacet = dataset.facets.get(partition.facetName, 'name');
+    if (subFacet.isText) {
+      if (partition.ordering === 'abc') {
+        // order alphabetically on text label (ascending)
+        var columnName = columnToName[partition.rank];
+        query.order(columnName, true);
+      } else if (partition.ordering === 'count') {
+        if (currentFilter.aggregates.length > 0) {
+          // order numerically on first aggregate (descending)
+          query.order(aggregateToName[0], false);
+        } else {
+          // order numerically on count (descending)
+          query.order('count', false);
+        }
+      } else {
+        console.warn('Ordering not implemented: ', partition.ordering);
+      }
+      query.limit(100);
+    }
   });
 
   // FIELD clause for a total count
@@ -894,8 +925,8 @@ function getData (server, datasets, dataview, filter) {
   });
   query.from(datasetUnion, 'datasetUnion');
 
-  // TODO queries involving free text columns should be limited and ordered
-  // query.order('', true);
+  // TODO text queries ordering and limits..
+  // query.order('count', true);
   // query.limit();
 
   console.log(filter.id + ': ' + query.toString());
