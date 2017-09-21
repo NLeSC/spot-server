@@ -73,12 +73,6 @@ if (!options.connectionString) {
   process.exit(1);
 }
 
-// no session file
-if (!options.session) {
-  console.error('No session file');
-  process.exit(1);
-}
-
 // port number
 if (!options.port) {
   options.port = 8000;
@@ -86,21 +80,50 @@ if (!options.port) {
 
 // Initialize
 // **********
-var spot = new Spot(JSON.parse(fs.readFileSync(options.session, 'utf8')));
-spot.datasets.forEach(function (d, i) {
-  console.log(i, d.getId(), d.name);
-});
-
 var connector = new SpotServer.connectors.Postgres(options.connectionString);
-var server = new SpotServer(io, connector, spot);
 
-// serve static files the given directory
+// Start the express server: serve static files from the given directory
 app.use(express.static(options.www));
 app.get('*', function (req, res, next) {
   res.sendFile(options.www + '/index.html');
 });
 
-server.run();
-http.listen(options.port, function () {
-  console.log('listening on ', options.port);
-});
+var spot;
+
+// call back function to be used below
+function run () {
+  // print datasets that will be served
+  spot.datasets.forEach(function (d, i) {
+    console.log(i, d.getId(), d.name);
+  });
+
+  // Start the spot server: connect the spot-client with the database
+  var server = new SpotServer(io, connector, spot);
+  server.run();
+  http.listen(options.port, function () {
+    console.log('listening on ', options.port);
+  });
+}
+
+if (options.session) {
+  spot = new Spot(JSON.parse(fs.readFileSync(options.session, 'utf8')));
+  run();
+} else {
+  spot = new Spot({
+    sessionType: 'server'
+  });
+  Promise
+  .all([connector.query('select tablename from pg_catalog.pg_tables where tableowner=current_user')])
+  .then(function (data) {
+    var tables = data[0].rows;
+
+    tables.forEach(function (table) {
+      spot.datasets.add({
+        name: table.tablename,
+        databaseTable: table.tablename
+      });
+    });
+    console.log('Added tables from database');
+    run();
+  });
+}

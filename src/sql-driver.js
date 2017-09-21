@@ -657,6 +657,7 @@ function setPercentiles (server, dataset, facet) {
     });
     facet.continuousTransform.type = 'percentiles';
     server.sendFacets(dataset);
+    return true;
   })
   .catch(function (error) {
     throw new Error('Cannot set percentiles:' + error.message);
@@ -686,6 +687,7 @@ function setMinMax (server, dataset, facet) {
     }
 
     server.sendFacets(dataset);
+    return true;
   })
   .catch(function (error) {
     throw new Error('Cannot set range:' + error.message);
@@ -727,7 +729,8 @@ function setCategories (server, dataset, facet) {
         group: row.category.toString()
       });
     });
-    server.syncFacets(dataset);
+    server.sendFacets(dataset);
+    return true;
   })
   .catch(function (error) {
     throw new Error('Cannot set categories:' + error.message);
@@ -747,7 +750,18 @@ function scanData (server, dataset) {
   return server.connector.query(query)
   .then(function (data) {
     server.connector.parseRows(data, dataset);
-    server.sendFacets(dataset);
+
+    dataset.facets.forEach(function (facet) {
+      if (facet.isContinuous || facet.isDatetime || facet.isDuration) {
+        setMinMax(server, dataset, facet);
+      } else if (facet.isCategorial) {
+        setCategories(server, dataset, facet);
+      } else {
+        console.warn('Cannot scan facet: ', facet.type);
+      }
+    });
+
+    return true;
   })
   .catch(function (error) {
     throw new Error('Cannot scan data:' + error.message);
