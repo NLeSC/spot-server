@@ -81,6 +81,7 @@ function parseRows (data, dataset) {
     dataset.facets.add({
       name: field.name,
       accessor: field.name,
+      isActive: true,
       type: type,
       description: sample.join(', ')
     });
