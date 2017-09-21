@@ -821,10 +821,11 @@ function subTableQuery (dataview, dataset, currentFilter) {
       } else if (partition.ordering === 'count') {
         if (currentFilter.aggregates.length > 0) {
           // order numerically on first aggregate (descending)
-          query.order(aggregateToName[0], false);
+          query.order(aggregateToName[1], false);
         } else {
           // order numerically on count (descending)
           query.order('count', false);
+          query.order(aggregateToName[1], false);
         }
       } else {
         console.warn('Ordering not implemented: ', partition.ordering);
