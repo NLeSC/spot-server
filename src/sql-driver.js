@@ -194,19 +194,22 @@ function transformAndPartitionCategorial (expression, partition, facet, subFacet
       group = rule.group;
     }
 
-    if (partition.groups.get(group, 'value')) {
-      var subexpression = rule.expression.replace(/'/g, "''");
+    // see if the transformed value is in our partitioning
+    partition.groups.forEach(function (partitionedGroup) {
+      if (partitionedGroup.value === group) {
+        var subexpression = rule.expression.replace(/'/g, "''");
 
-      var regexp = subexpression.match('^/(.*)/$');
-      if (regexp) {
-        // regexp matching
-        subexpression = " LIKE '%" + regexp[1] + "%'";
-      } else {
-        // direct comparison
-        subexpression = "='" + subexpression + "'";
+        var regexp = subexpression.match('^/(.*)/$');
+        if (regexp) {
+          // regexp matching
+          subexpression = " LIKE '%" + regexp[1] + "%'";
+        } else {
+          // direct comparison
+          subexpression = "='" + subexpression + "'";
+        }
+        query.when(expression + subexpression).then(group);
       }
-      query.when(expression + subexpression).then(group);
-    }
+    });
   });
   query.else('Other');
 
