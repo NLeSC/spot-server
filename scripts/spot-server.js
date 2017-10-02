@@ -42,6 +42,12 @@ var optionDefinitions = [
     alias: 'p',
     type: Number,
     description: 'Port number to start the server on (default: 8000)'
+  },
+  {
+    name: 'locked',
+    alias: 'l',
+    type: Boolean,
+    description: 'Lock down the session; datasets and facets cannot be modified. This also reduces network traffic, and can give a speedup'
   }
 ];
 
@@ -78,6 +84,15 @@ if (!options.port) {
   options.port = 8000;
 }
 
+// make sure options.locked is a proper boolean
+if (options.locked) {
+  console.log('Starting with isLockedDown = true; datasets cannot be modified by clients');
+  options.locked = true;
+} else {
+  console.log('Starting with open session; datasets can be modified by clients');
+  options.locked = false;
+}
+
 // Initialize
 // **********
 var connector = new SpotServer.connectors.Postgres(options.connectionString);
@@ -107,10 +122,16 @@ function run () {
 
 if (options.session) {
   spot = new Spot(JSON.parse(fs.readFileSync(options.session, 'utf8')));
+  if (options.locked) {
+    spot.isLockedDown = true;
+  } else {
+    spot.isLockedDown = false;
+  }
   run();
 } else {
   spot = new Spot({
-    sessionType: 'server'
+    sessionType: 'server',
+    isLockedDown: options.locked
   });
   Promise
   .all([connector.query('select tablename from pg_catalog.pg_tables where tableowner=current_user')])

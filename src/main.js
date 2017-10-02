@@ -51,8 +51,11 @@ function run (io, server) {
      * @params {string} req.dataset Serialized dataset
      */
     socket.on('scanData', function (req) {
+      if (server.spot.isLockedDown) {
+        console.log('isLockedDown: not scanning database');
+        return;
+      }
       console.log('Scanning database');
-      console.time(req.dataset.id + ': syncFacets');
       dataset.set(req.dataset);
       driver.scanData(server, dataset);
     });
@@ -65,7 +68,12 @@ function run (io, server) {
      */
     socket.on('getMetaData', function (req) {
       console.time(req.dataview.id + ': getMetaData');
-      datasets.reset(req.datasets);
+      if (server.spot.isLockedDown || !req.datasets) {
+        // use unmodified datasets
+        datasets = server.spot.datasets;
+      } else {
+        datasets.reset(req.datasets);
+      }
       dataview = new Dataview(req.dataview);
       driver.getMetaData(server, datasets, dataview);
     });
@@ -77,13 +85,18 @@ function run (io, server) {
      *
      * @function
      * @params {Object} req
-     * @params {string} req.datasets Serialized datasets
+     * @params {string} req.datasets Serialized datasets (used when not locked down)
      * @params {string} req.dataview Serialized dataview
      */
     socket.on('getData', function (req) {
       var singleRequests = [];
 
-      datasets.reset(req.datasets);
+      if (server.spot.isLockedDown || !req.datasets) {
+        // use unmodified datasets
+        datasets = server.spot.datasets;
+      } else {
+        datasets.reset(JSON.parse(req.datasets));
+      }
       dataview = new Dataview(req.dataview);
 
       dataview.filters.forEach(function (filter) {
@@ -104,35 +117,51 @@ function run (io, server) {
     /**
      * @function
      * @params {Object} req
-     * @params {string} req.dataset Serialized dataset
-     * @params {string} req.facetId of the facet
+     * @params {String} req.datasetId Dataset ID
+     * @params {string} req.dataset   Serialized dataset (used when not locked down)
+     * @params {string} req.facetId   of the facet
      */
     socket.on('setMinMax', function (req) {
-      console.time(req.dataset.id + ': syncFacets');
-      dataset.set(req.dataset);
+      if (server.spot.isLockedDown) {
+        // lookup dataset id from unmodified set
+        dataset.set(datasets.get(req.datasetId));
+      } else {
+        dataset.set(req.dataset);
+      }
+      dataview = new Dataview(req.dataview);
       driver.setMinMax(server, dataset, dataset.facets.get(req.facetId));
     });
 
     /**
      * @function
      * @params {Object} req
-     * @params {string} req.dataset Serialized dataset
-     * @params {string} req.facetId of the facet
+     * @params {String} req.datasetId Dataset ID
+     * @params {string} req.dataset   Serialized dataset (used when not locked down)
+     * @params {string} req.facetId   of the facet
      */
     socket.on('setCategories', function (req) {
-      console.time(req.dataset.id + ': syncFacets');
-      dataset.set(req.dataset);
+      if (server.spot.isLockedDown) {
+        // lookup dataset id from unmodified set
+        dataset.set(server.spot.datasets.get(req.dataset.id));
+      } else {
+        dataset.set(req.dataset);
+      }
       driver.setCategories(server, dataset, dataset.facets.get(req.facetId));
     });
 
     /**
      * @function
-     * @params {string} req.dataset Serialized dataset
-     * @params {string} req.facetId of the facet
+     * @params {String} req.datasetId Dataset ID
+     * @params {string} req.dataset   Serialized dataset (used when not locked down)
+     * @params {string} req.facetId   of the facet
      */
     socket.on('setPercentiles', function (req) {
-      console.time(req.dataset.id + ': syncFacets');
-      dataset.set(req.dataset);
+      if (server.spot.isLockedDown) {
+        // lookup dataset id from unmodified set
+        dataset.set(datasets.get(req.datasetId));
+      } else {
+        dataset.set(req.dataset);
+      }
       driver.setPercentiles(server, dataset, dataset.facets.get(req.facetId));
     });
 
@@ -190,7 +219,6 @@ module.exports = function SpotServer (io, connector, spot) {
       datasetId: dataset.getId(),
       data: dataset.facets.toJSON()
     });
-    console.timeEnd(dataset.getId() + ': syncFacets');
   };
 
   /**
