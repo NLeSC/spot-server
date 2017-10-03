@@ -885,6 +885,7 @@ function getData (server, datasets, dataview, filter) {
     var columnName = columnToName[partition.rank];
     query.field(columnName, columnName);
     query.group(columnName);
+    query.order(columnName);
   });
 
   // FIELD clause for this aggregate, combined with SUM(), AVG(), etc.
