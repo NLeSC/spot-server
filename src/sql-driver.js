@@ -176,10 +176,12 @@ function transformAndPartitionCategorial (expression, partition, facet, subFacet
 
   if (subFacet) {
     rules = subFacet.categorialTransform.rules;
-    transform = facet.categorialTransform.transform;
+    transform = function (d) {
+      return facet.categorialTransform.transform(subFacet.categorialTransform.transform(d));
+    };
   } else {
     rules = facet.categorialTransform.rules;
-    transform = false;
+    transform = facet.categorialTransform.transform;
   }
 
   // approach:
