@@ -360,7 +360,10 @@ function groupExpression (expression, partition) {
     expression = '(' + expression + ")::timestamptz AT TIME ZONE '" + partition.zone + "'";
 
     // find resolution
-    resolution = utilTime.getDatetimeResolution(partition.minval, partition.maxval);
+    resolution = partition.groupingDatetime;
+    if (resolution === 'auto') {
+      resolution = utilTime.getDatetimeResolution(partition.minval, partition.maxval);
+    }
     units = utilTime.durationUnits.get(resolution, 'description').postgresFormat;
 
     // truncate
