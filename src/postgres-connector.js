@@ -83,7 +83,7 @@ function parseRows (data, dataset) {
       accessor: field.name,
       isActive: true,
       type: type,
-      description: sample.join(', ')
+      description: type + ' facet. Values: ' + sample.join(', ')
     });
   });
 }
