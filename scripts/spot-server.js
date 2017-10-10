@@ -8,6 +8,7 @@ var SpotServer = require('..');
 var commandLineArgs = require('command-line-args');
 var commandLineUsage = require('command-line-usage');
 var fs = require('fs');
+var path = require('path');
 
 /**
  * Commanline options
@@ -35,7 +36,7 @@ var optionDefinitions = [
     name: 'www',
     alias: 'w',
     type: String,
-    description: 'Location (directory) containing an index.html to host'
+    description: 'Location (directory) containing an index.html to host, defaults to example/site'
   },
   {
     name: 'port',
@@ -91,6 +92,11 @@ if (options.locked) {
 } else {
   console.log('Starting with open session; datasets can be modified by clients');
   options.locked = false;
+}
+
+// use fallback site
+if (!options.www) {
+  options.www = path.resolve('example', 'site');
 }
 
 // Initialize
