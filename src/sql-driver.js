@@ -722,7 +722,8 @@ function setCategories (server, dataset, facet) {
     .where(whereValid(facet))
     .from(esc(dataset.databaseTable))
     .group('category')
-    .order('count', false);
+    .order('count', false)
+    .limit(75);
 
   return server.connector.query(query)
   .then(function (result) {
