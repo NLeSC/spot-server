@@ -834,7 +834,6 @@ function subTableQuery (dataview, dataset, currentFilter) {
         } else {
           // order numerically on count (descending)
           query.order('count', false);
-          query.order(aggregateToName[1], false);
         }
       } else {
         console.warn('Ordering not implemented: ', partition.ordering);
