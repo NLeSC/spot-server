@@ -6,10 +6,12 @@ var filterB;
 var spot = new Spot({ sessionType: 'server' });
 
 // connect to the server
-spot.connectToServer('http://localhost:8000');
+spot.connectToServer('http://localhost:8000')
 
 // get available datasets form the server
-spot.getDatasets()
+.then(function () {
+  return spot.getDatasets();
+})
 
 // initialize a few filters, and ask for data
 .then(function (datasets) {
@@ -26,9 +28,6 @@ spot.getDatasets()
   // , and on 'age' using two bins; as minimum was 5 and maximum was 49 these will be
   // [5, 27) labelled as '16' and [27, 49] labelled as '38'
   filterB.partitions.add([ { facetName: 'age', rank: 1, groupingParam: 2 } ]);
-
-  filterA.partitions.forEach(function (partition) { partition.setGroups(); });
-  filterB.partitions.forEach(function (partition) { partition.setGroups(); });
 
   // ... and that takes the average over the 'age'
   filterA.aggregates.add([ { facetName: 'age', rank: 1, operation: 'avg' } ]);
