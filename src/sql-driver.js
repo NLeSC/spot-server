@@ -372,6 +372,11 @@ function groupExpression (expression, partition) {
     resolution = utilTime.getDurationResolution(partition.minval, partition.maxval);
     units = utilTime.durationUnits.get(resolution, 'description').postgresFormat;
 
+    // postgress does not round intervals to weeks, as it cannot deal with months being a non-integer number of weeks
+    // 1 week => 7 * 24 * 60 * 60 = 604800 seconds
+    if (units === 'week') {
+      return "FLOOR(EXTRACT(epoch FROM " + expression + ")/604800) * (INTERVAL '1 week')";
+    }
     return "DATE_TRUNC('" + units + "', " + expression + ')';
   } else if (partition.isText) {
     // noop
@@ -578,7 +583,7 @@ function whereSelected (facet, subFacet, partition) {
     if (partition.selected && partition.selected.length > 0) {
       s = partition.selected[0];
       e = partition.selected[1];
-      inclusive = e === partition.maxval.toISOString();
+      inclusive = e === (partition.maxval.toISOString? partition.maxval.toISOString() : partition.maxval.toString());
     } else {
       s = partition.minval;
       e = partition.maxval;
