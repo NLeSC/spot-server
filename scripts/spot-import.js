@@ -284,6 +284,10 @@ var contents;
 console.log('Opening session: ', options.session);
 try {
   contents = JSON.parse(fs.readFileSync(options.session, 'utf8'));
+
+  // ensure the session file is a client session, as we dont want to connect just yet
+  contents.sessionType = 'client';
+
   spot = new Spot(contents);
 } catch (err) {
   console.log('Failed to load session, creating new session file');
