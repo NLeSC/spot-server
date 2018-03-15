@@ -164,7 +164,6 @@ function importFile (spot, options) {
       }
 
       // add the data to the dataset
-      console.log(data);
       dataset.data = data;
       uploadDataset(spot, options, dataset);
     });
