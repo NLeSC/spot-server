@@ -37,6 +37,8 @@
   "dependencies": {
     "command-line-args": "^3.0.5",
     "command-line-usage": "^4.0.0",
+    "csv-parse": "^2.0.4",
+    "csv-stringify": "^2.0.4",
     "express": "^4.15.4",
     "pg": "^6.1.0",
     "pg-copy-streams": "^1.2.0",
@@ -44,7 +46,8 @@
     "socket.io": "^1.4.6",
     "spot-framework": "git://github.com/NLeSC/spot-framework.git",
     "squel": "^5.3.2",
-    "stream-array": "^1.1.2"
+    "stream-array": "^1.1.2",
+    "stream-transform": "^1.0.2"
   },
   "devDependencies": {
     "codacy-coverage": "^2.0.0",
