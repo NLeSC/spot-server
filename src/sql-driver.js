@@ -800,6 +800,10 @@ function scanData (server, dataset) {
  * @params {Filter} currentFilter
  */
 function subTableQuery (dataview, dataset, currentFilter) {
+  if (!dataview || !dataset || !currentFilter) {
+    return squel.select('NULL').limit(0);
+  }
+
   var query = squel.select();
 
   // FIELD clause for this partition, combined with GROUP BY
@@ -938,7 +942,11 @@ function getData (server, datasets, dataview, filter) {
       datasetUnion = subTable;
     }
   });
-  query.from(datasetUnion, 'datasetUnion');
+  if (datasetUnion) {
+    query.from(datasetUnion, 'datasetUnion');
+  } else {
+    query.from(squel.select().field('0', 'count'), 'datasetUnion');
+  }
 
   // TODO text queries ordering and limits..
   // query.order('count', true);
