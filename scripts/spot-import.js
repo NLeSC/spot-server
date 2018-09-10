@@ -188,7 +188,7 @@ function uploadDataset (spot, options, dataset) {
     if (facet.isCategorial) {
       q.field(facet.name, 'varchar');
     } else if (facet.isContinuous) {
-      q.field(facet.name, 'real');
+      q.field(facet.name, 'double precision');
     } else if (facet.isDatetime) {
       q.field(facet.name, 'timestamp with time zone');
     } else if (facet.isDuration) {
