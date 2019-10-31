@@ -68,6 +68,12 @@ var optionDefinitions = [
     alias: 'd',
     type: String,
     description: 'Dataset description'
+  },
+  {
+    name: 'name',
+    alias: 'n',
+    type: String,
+    description: 'Dataset name'
   }
 ];
 
@@ -128,7 +134,7 @@ if (!options.table) {
 function importFile (spot, options) {
   // create dataset structure
   var dataset = spot.datasets.add({
-    name: options.file,
+    name: options.name,
     description: options.description || 'no description',
     URL: options.url || 'no url',
     databaseTable: options.table
@@ -200,73 +206,75 @@ function uploadDataset (spot, options, dataset) {
     valueFns[facet.name] = Spot.util.dx.valueFn(facet);
   });
 
-  var client = new pg.Client(options.connectionString);
-  client.on('drain', client.end.bind(client));
-  client.connect(function (err) {
-    if (err) throw err;
+  // var client = new pg.Client(options.connectionString);
+  // client.on('drain', client.end.bind(client));
+  // client.connect(function (err) {
+  //   if (err) throw err;
 
-    // setup copy from
-    var command = 'COPY ' + options.table + ' FROM STDIN ';
-    command = command + '( ';
-    command = command + 'FORMAT CSV, ';
-    command = command + "DELIMITER '\t', ";
-    command = command + "QUOTE '\b', "; // defaults to '"' which can give problems
-    command = command + 'NULL ' + misval + ' ';
-    command = command + ') ';
-    console.log(command.toString());
+  //   // setup copy from
+  //   var command = 'COPY ' + options.table + ' FROM STDIN ';
+  //   command = command + '( ';
+  //   command = command + 'FORMAT CSV, ';
+  //   command = command + "DELIMITER '\t', ";
+  //   command = command + "QUOTE '\b', "; // defaults to '"' which can give problems
+  //   command = command + 'NULL ' + misval + ' ';
+  //   command = command + ') ';
+  //   console.log('spot-import.js:216 ' + command.toString());
 
-    // create table & sink
-    client.query('DROP TABLE IF EXISTS ' + options.table);
-    client.query(q.toString());
-    console.log(q.toString());
-    var sink = client.query(pgStream.from(command));
+  //   // create table & sink
+  //   //client.query('DROP TABLE IF EXISTS ' + options.table);
+  //   client.query(q.toString());
+  //   console.log('spot-import.js:221 ' + q.toString());
+  //   var sink = client.query(pgStream.from(command));
 
-    // create formatter
-    var formatter = csvStringify({
-      columns: columns,
-      quote: false,
-      quotedEmpty: false,
-      delimiter: '\t',
-      rowDelimiter: 'unix',
-      formatters: {
-        object: function (o) {
-          return o.toISOString();
-        }
-      }
-    });
+  //   // create formatter
+  //   var formatter = csvStringify({
+  //     columns: columns,
+  //     quote: false,
+  //     quotedEmpty: false,
+  //     delimiter: '\t',
+  //     rowDelimiter: 'unix',
+  //     formatters: {
+  //       object: function (o) {
+  //         return o.toISOString();
+  //       }
+  //     }
+  //   });
 
-    // create transformer
-    var transformer = csvTransform(function (data) {
-      columns.forEach(function (column) {
-        data[column] = valueFns[column](data);
-      });
-      return data;
-    });
+  //   // create transformer
+  //   var transformer = csvTransform(function (data) {
+  //     columns.forEach(function (column) {
+  //       data[column] = valueFns[column](data);
+  //     });
+  //     return data;
+  //   });
 
-    console.log('Streaming to database');
+  //   console.log('Streaming to database');
 
-    if (options.json) {
-      streamify(dataset.data).pipe(transformer).pipe(formatter).pipe(sink);
-    } else if (options.csv) {
-      var inStream = fs.createReadStream(options.file);
-      var parser = csvParse({
-        columns: true
-      }, function (error, data) {
-        if (error) {
-          console.error(error);
-          process.exit(1);
-        }
-      });
-      inStream.pipe(parser).pipe(transformer).pipe(formatter).pipe(sink);
-    }
-  });
+  //   if (options.json) {
+  //     streamify(dataset.data).pipe(transformer).pipe(formatter).pipe(sink);
+  //   } else if (options.csv) {
+  //     var inStream = fs.createReadStream(options.file);
+  //     var parser = csvParse({
+  //       columns: true
+  //     }, function (error, data) {
+  //       if (error) {
+  //         console.error(error);
+  //         process.exit(1);
+  //       }
+  //     });
+  //     inStream.pipe(parser).pipe(transformer).pipe(formatter).pipe(sink);
+  //   }
+
+  // });
 
   writeSession(spot, options);
 }
 
 function writeSession (spot, options) {
   var json = spot.toJSON();
-  json.sessionType = 'server';
+  json.sessionType = 'client';
+  // json.isLockedDown = true;
 
   // write
   console.log('Writing session');
