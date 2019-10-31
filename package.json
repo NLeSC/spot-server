@@ -37,6 +37,7 @@
   "dependencies": {
     "command-line-args": "^3.0.5",
     "command-line-usage": "^4.0.0",
+    "dotenv": "^8.1.0",
     "express": "^4.15.4",
     "pg": "^6.1.0",
     "pg-copy-streams": "^1.2.0",

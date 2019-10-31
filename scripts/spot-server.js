@@ -9,6 +9,9 @@ var commandLineArgs = require('command-line-args');
 var commandLineUsage = require('command-line-usage');
 var fs = require('fs');
 
+const dotenv = require('dotenv');
+dotenv.config();
+
 /**
  * Commanline options
  */
@@ -96,6 +99,9 @@ if (options.locked) {
 // Initialize
 // **********
 var connector = new SpotServer.connectors.Postgres(options.connectionString);
+
+const port = process.env.PORT;
+console.log(`Your port is ${port}`);
 
 // Start the express server: serve static files from the given directory
 app.use(express.static(options.www));
