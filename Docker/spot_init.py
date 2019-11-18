@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# spot_init.py
 
 from pathlib import Path
 import argparse
@@ -16,19 +15,15 @@ def uploadCSV(tableName='spot_data', fileName="data.csv", columnName='dataset', 
     df.columns = map(str.lower, df.columns.str.strip())
     df.insert(0, columnName, f'"{columnVal}"')
     df.to_csv(fileName, index=False)
-    df.to_sql(tableName, con=pg_engine, if_exists='append')
-
-# Create the parser
-parser = argparse.ArgumentParser(description='List the content of a folder')
+    df.to_sql(tableName, con=pg_engine, if_exists='append', chunksize=100)
 
 # Create the parser
 parser = argparse.ArgumentParser(prog='spot_init',
                                  usage='%(prog)s [options] path',
-                                 description='List the content of a folder',
+                                 description='Manage SPOT server.',
                                  epilog='Happy SPOTting! :)')
 
 action_group = parser.add_mutually_exclusive_group(required=True)
-
 
 # Add the arguments
 action_group.add_argument('-i',
@@ -109,9 +104,8 @@ file_type = '--csv'
 
 if (import_mode):
     if (file_list):
-        # print(file_list)
         for file_name in file_list:
-            # print(file_name)
+            #TODO: check if file_name is a file            
             file_name = file_name[0]
             if os.path.isfile(file_name) and os.path.exists(file_name):
                 dataset_name = Path(file_name).resolve().stem
