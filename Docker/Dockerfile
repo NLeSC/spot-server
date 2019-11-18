@@ -12,10 +12,10 @@ RUN echo http://nl.alpinelinux.org/alpine/edge/main > /etc/apk/repositories; \
     apk update
 
 RUN apk --no-cache --update add bash coreutils findutils build-base git bind-tools \
-    nodejs \
+    nodejs nodejs-npm \
     python3 python3-dev \
     postgresql-dev postgresql-client \
-    py3-numpy py3-pandas py-sqlalchemy py-psycopg2 \
+    py3-numpy py3-pandas py-sqlalchemy py3-psycopg2 \
     vim
 
 RUN git clone https://github.com/NLeSC/spot-server.git && \
