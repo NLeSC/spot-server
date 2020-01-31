@@ -20,6 +20,9 @@ services:
 
   spot-server:
     image: nlesc/spot-server:latest
+    build:
+      context: ./Docker
+      dockerfile: Dockerfile
     container_name: spot-server
     hostname: spot-server   
     ports:

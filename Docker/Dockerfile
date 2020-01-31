@@ -15,8 +15,8 @@ RUN apk --no-cache --update add bash coreutils findutils build-base git bind-too
     nodejs nodejs-npm \
     python3 python3-dev \
     postgresql-dev postgresql-client \
-    py3-numpy py3-pandas py-sqlalchemy py3-psycopg2 \
-    vim
+    py3-numpy py3-pandas py-sqlalchemy py3-psycopg2 py3-tqdm \
+    vim curl
 
 RUN git clone https://github.com/NLeSC/spot-server.git && \
     cd spot-server && \

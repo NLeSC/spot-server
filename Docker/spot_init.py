@@ -8,14 +8,30 @@ import sys
 
 import pandas as pd
 from sqlalchemy import create_engine
+from tqdm import tqdm
+
+def chunker(seq, size):
+    # from http://stackoverflow.com/a/434328
+    return (seq[pos:pos + size] for pos in range(0, len(seq), size))
 
 def uploadCSV(tableName='spot_data', fileName="data.csv", columnName='dataset', columnVal=''):
     pg_engine = create_engine(connect_str)
     df = pd.read_csv(fileName)
+
+    chunksize = int(len(df) / 20) # 5%
+    print("Total data length: {}, chunksize: {}".format(len(df), chunksize))
+
     df.columns = map(str.lower, df.columns.str.strip())
     df.insert(0, columnName, f'"{columnVal}"')
     df.to_csv(fileName, index=False)
-    df.to_sql(tableName, con=pg_engine, if_exists='append', chunksize=100)
+#    df.to_sql(tableName, con=pg_engine, if_exists='append', chunksize=100)
+    with tqdm(total=len(df)) as pbar:
+        for i, chunked_df in enumerate(chunker(df, chunksize)):
+            replace = "replace" if i == 0 else "append"
+            chunked_df.to_sql(tableName, con=pg_engine, if_exists=replace, index=False)
+            pbar.update(chunksize)
+            # tqdm._instances.clear()
+
 
 # Create the parser
 parser = argparse.ArgumentParser(prog='spot_init',
@@ -109,9 +125,9 @@ if (import_mode):
             file_name = file_name[0]
             if os.path.isfile(file_name) and os.path.exists(file_name):
                 dataset_name = Path(file_name).resolve().stem
-                print(dataset_name)
+                print("Dataset name: {}".format(dataset_name))                
                 uploadCSV(tableName=table_name, fileName=file_name, columnName='dataset', columnVal=dataset_name)
-                call(["node", import_script, '-c', connect_str, '-t', table_name, '-s', session_file, '-d', description, file_type, '-f', file_name, '-n', data_name])
+                call(['node', '--experimental-modules', import_script, '-c', connect_str, '-t', table_name, '-s', session_file, '-d', description, file_type, '-f', file_name, '-n', data_name])
     else:
         print('No filename was given. Exiting.')
         sys.exit()
