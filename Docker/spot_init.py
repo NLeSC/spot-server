@@ -19,6 +19,8 @@ def uploadCSV(tableName='spot_data', fileName="data.csv", columnName='dataset', 
     df = pd.read_csv(fileName)
 
     chunksize = int(len(df) / 20) # 5%
+    if chunksize == 0:
+        chunksize = len(df)
     print("Total data length: {}, chunksize: {}".format(len(df), chunksize))
 
     df.columns = map(str.lower, df.columns.str.strip())
