@@ -273,8 +273,9 @@ function uploadDataset (spot, options, dataset) {
 
 function writeSession (spot, options) {
   var json = spot.toJSON();
-  json.sessionType = 'client';
-  // json.isLockedDown = true;
+  // json.sessionType = 'client';
+  json.sessionType = 'server';  
+  json.isLockedDown = true;
 
   // write
   console.log('Writing session');

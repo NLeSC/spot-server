@@ -21,10 +21,12 @@ services:
   spot-server:
     image: nlesc/spot-server:latest
     build:
-      context: ./Docker
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./Docker/Dockerfile
+    env_file:
+      - .env
     container_name: spot-server
-    hostname: spot-server   
+    hostname: spot-server
     ports:
       - "8000:8000"
     depends_on:
@@ -39,7 +41,7 @@ services:
       - ./data:/data
     restart: always
     networks:
-      - spotproxy    
+      - spotproxy
 
 networks:
   spotproxy:
@@ -52,4 +54,4 @@ volumes:
     driver: local
   spotserver:
     name: spotserver
-    driver: local    
+    driver: local
